@@ -194,7 +194,7 @@ export function captcha() {
                 console.log("An error occurred while solving. Stopping the solver.");
                 clearInterval(startInterval);
             }
-        }, 5000);
+        }, 200);
     }
 
     const gmVariable = 'captchaAutofillEnabled';

@@ -145,30 +145,26 @@ function initDepositAll() {
 
 }
 
-function addDepositAll(elem3, inputs, gm_key) {
-    elem3.click(function( event ) {
-        let warchest = GM_getValue(gm_key);
-        if (warchest == undefined) warchest = {};
+function addDepositAll(elem3: JQuery<HTMLElement>, inputs: JQuery<HTMLElement>, gm_key: string): void {
+    elem3.click((event: JQuery.ClickEvent) => {
+        let warchest = GM_getValue(gm_key) as { [key: string]: number } | undefined;
+        if (warchest === undefined) warchest = {};
         try {
             event.preventDefault();
-            inputs.each(function(index) {
-                let name = $(this).attr("name");
-                switch(name) {
-                    case "depnote":
-                    case "withtype":
-                    case "withrecipient":
-                    case "withnote":
-                        return;
+            inputs.each((index, element) => {
+                let name = $(element).attr("name");
+                if (name === "depnote" || name === "withtype" || name === "withrecipient" || name === "withnote") {
+                    return;
                 }
 
-                let text = $(this).parent().prev().text();
-                let amt = parseFloat(text.substr(text.replace(",","").search("[0-9]"), text.length).replace(/,/g, ''));
-                let wcValue = warchest[name]
-                if (wcValue != undefined) {
+                let text = $(element).parent().prev().text();
+                let amt = parseFloat(text.substr(text.replace(",", "").search("[0-9]"), text.length).replace(/,/g, ''));
+                let wcValue = warchest![name!];
+                if (wcValue !== undefined) {
                     amt = Math.max(0, amt - wcValue);
                 }
-                $(this).val(amt.toFixed(2));
-            })
+                $(element).val(amt.toFixed(2));
+            });
         } catch (e) {
             console.log(e);
         }
@@ -199,7 +195,7 @@ function disburse() {
 
     $("#usrform").submit(function( event ) {
         try {
-            let elems = JSON.parse($("#bankjson").val());
+            let elems = JSON.parse($("#bankjson").val() as string);
             if (elems.length > 0) {
                 GM_setValue("BANK_SEND", elems);
                 transfer();
@@ -223,23 +219,40 @@ function cancel() {
 }
 
 function transfer() {
-    let arr = GM_getValue("BANK_SEND", [])
+    let arr: {
+        withmoney?: number | string,
+        withcredits?: number | string,
+        withfood?: number | string,
+        withcoal?: number | string,
+        withoil?: number | string,
+        withuranium?: number | string,
+        withlead?: number | string,
+        withiron?: number | string,
+        withbauxite?: number | string,
+        withgasoline?: number | string,
+        withmunitions?: number | string,
+        withsteel?: number | string,
+        withaluminum?: number | string,
+        withsubmit?: string,
+    }[] = GM_getValue("BANK_SEND", [])
     if (arr.length > 0) {
         console.log("Send " + JSON.stringify(arr));
+        // let data = arr.shift();
         let data = arr.shift();
-        if (data["withsubmit"]) {
-            delete data["withsubmit"];
+        if (!data) return;
+
+        if (data.withsubmit) {
+            delete data.withsubmit;
         }
         GM_setValue("BANK_SEND", arr);
         let url = window.location.href;
         let form = document.getElementById("formWithdrawal");
         for (const [key, value] of Object.entries(data)) {
             console.log(`${key} ${value}`);
-            document.getElementsByName(key)[0].value = value;
+            (document.getElementsByName(key)[0] as HTMLInputElement).value = value + "";
         }
-
-        document.getElementById("btn_confirm_withdrawal").click();
-        document.getElementById("submit_confirmation").click();
+        (document.getElementById("btn_confirm_withdrawal") as HTMLButtonElement).click();
+        (document.getElementById("submit_confirmation") as HTMLButtonElement).click();
     }
 }
 
@@ -453,7 +466,7 @@ function initBankListener() {
 
             let queryString = serializeQuery({
                 token: token,
-                result: result.textContent
+                result: result.textContent as string
             });
 
             let url = CALLBACK_URL + "?" + queryString;

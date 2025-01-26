@@ -1,18 +1,27 @@
 const path = require('path');
 const { UserscriptPlugin } = require('webpack-userscript');
-const dev = process.env.NODE_ENV === 'development';
 const webpack = require('webpack');
+const TerserPlugin = require('terser-webpack-plugin');
+const dev = process.env.NODE_ENV === 'development';
+
 /**
  * @type {import('webpack').Configuration}
  */
 module.exports = {
     entry: './src/index.ts',
     mode: dev ? 'development' : 'production',
+    devtool: 'source-map', // Enable source maps
+    cache: {
+        type: 'memory', // Enable in-memory caching
+        cacheUnaffected: true, // Cache modules that are not affected by changes
+    },
     module: {
         rules: [
             {
                 test: /\.tsx?$/,
-                use: 'ts-loader',
+                use: [
+                    'ts-loader'
+                ],
                 exclude: /node_modules/,
             },
         ],
@@ -61,6 +70,13 @@ module.exports = {
     ],
     resolve: {
         extensions: ['.tsx', '.ts', '.js'],
+        modules: [path.resolve(__dirname, 'src'), 'node_modules'], // Optimize module resolution
+    },
+    optimization: {
+        minimize: !dev,
+        minimizer: [new TerserPlugin({
+            parallel: true, // Enable parallel processing
+        })],
     },
     output: {
         filename: 'locutus.js',
@@ -70,7 +86,7 @@ module.exports = {
         static: {
             directory: path.join(__dirname, 'dist'),
         },
-        compress: true,
+        compress: !dev,
         port: 9000,
         hot: true, // Enable hot module replacement
     },
