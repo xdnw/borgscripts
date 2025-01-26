@@ -14,7 +14,6 @@
     "@types/jquery": "^3.5.32",
     "jquery": "^3.7.1",
     "jquery-ui": "^1.14.1",
-    "thread-loader": "^4.0.4",
     "ts-loader": "^9.5.2",
     "typescript": "^5.7.3",
     "webpack": "^5.97.1",
