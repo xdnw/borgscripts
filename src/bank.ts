@@ -1,4 +1,7 @@
 import $ from 'jquery';
+require('webpack-jquery-ui/dialog');
+// require('webpack-jquery-ui/css');
+
 const FEATURE_BANK_POLLING = false;
 
 /*
@@ -176,9 +179,6 @@ function addDepositAll(elem3: JQuery<HTMLElement>, inputs: JQuery<HTMLElement>, 
 /*
 Add Disburse command
 */
-let newCSS = GM_getResourceText ("jqueryui");
-GM_addStyle (newCSS);
-
 function disburse() {
 
     let myPrompt = $(`<div id="dialog" title="Disburse dialog">
@@ -512,5 +512,17 @@ function pollBankRequests() {
         console.log("Sending AJAX request...");
     } else {
         setTimeout(pollBankRequests, 8000);
+    }
+}
+
+export function initBankScripts() {
+    if (document.getElementById("deposit")) {
+        let newCSS = GM_getResourceText ("jqueryui");
+        GM_addStyle (newCSS);
+        initBankListener();
+        initDisburse();
+        initDepositAll();
+        initNationWarchest();
+        initAllianceWarchest();
     }
 }

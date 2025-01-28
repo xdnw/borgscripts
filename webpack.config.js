@@ -1,16 +1,14 @@
 const path = require('path');
 const { UserscriptPlugin } = require('webpack-userscript');
+const dev = process.env.NODE_ENV === 'development';
 const webpack = require('webpack');
 const TerserPlugin = require('terser-webpack-plugin');
-const dev = process.env.NODE_ENV === 'development';
-
 /**
  * @type {import('webpack').Configuration}
  */
 module.exports = {
     entry: './src/index.ts',
     mode: dev ? 'development' : 'production',
-    devtool: 'source-map', // Enable source maps
     cache: {
         type: 'memory', // Enable in-memory caching
         cacheUnaffected: true, // Cache modules that are not affected by changes
@@ -19,17 +17,21 @@ module.exports = {
         rules: [
             {
                 test: /\.tsx?$/,
-                use: [
-                    'ts-loader'
-                ],
+                use: 'ts-loader',
                 exclude: /node_modules/,
+            },
+            {
+                test: /\.css$/,
+                use: ["style-loader", "css-loader"]
             },
         ],
     },
     plugins: [
         new webpack.ProvidePlugin({
-            $: 'jquery',
-            jQuery: 'jquery'
+            $: "jquery",
+            jQuery: "jquery",
+            "window.jQuery": "jquery'",
+            "window.$": "jquery"
         }),
         new UserscriptPlugin({
             headers: {
@@ -46,7 +48,9 @@ module.exports = {
                     'GM_setValue',
                     'GM_getValue',
                     'GM_addValueChangeListener',
-                    'GM_xmlhttpRequest'
+                    'GM_xmlhttpRequest',
+                    'GM_getResourceText',
+                    'GM_addStyle'
                 ],
                 icon: 'https://raw.githubusercontent.com/xdnw/lc_stats_svelte/refs/heads/main/static/favicon-large.webp',
                 connect: [
@@ -54,11 +58,10 @@ module.exports = {
                     'engageub1.pythonanywhere.com'
                 ],
                 license: 'MIT',
-                require: [
-                    'https://code.jquery.com/jquery-3.7.1.min.js',
-                    'https://code.jquery.com/ui/1.14.1/jquery-ui.min.js',
-                    'https://code.jquery.com/ui/1.14.1/themes/base/jquery-ui.css'
-                ],
+                // require: [
+                //     'https://code.jquery.com/jquery-3.7.1.min.js',
+                //     'https://code.jquery.com/ui/1.14.1/jquery-ui.min.js',
+                // ],
                 resource: {
                     jqueryui: 'https://code.jquery.com/ui/1.14.1/themes/base/jquery-ui.css'
                 }
@@ -86,7 +89,7 @@ module.exports = {
         static: {
             directory: path.join(__dirname, 'dist'),
         },
-        compress: !dev,
+        compress: true,
         port: 9000,
         hot: true, // Enable hot module replacement
     },
