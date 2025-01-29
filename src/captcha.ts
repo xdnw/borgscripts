@@ -1,6 +1,15 @@
-import {qSelector, urlMatches} from "./lib";
+import {addCheckboxWithGMVariable, qSelector, refererMatches, urlMatches} from "./lib";
 
 export function captcha() {
+    // Check domain
+    const isPWPage = urlMatches(/^https:\/\/politicsandwar\.com/) || urlMatches(/^https:\/\/test.politicsandwar\.com/);
+    if (!isPWPage) {
+        if (!refererMatches(/^https:\/\/politicsandwar\.com/) && !refererMatches(/^https:\/\/test.politicsandwar\.com/)) {
+            return;
+        }
+    }
+    // end check domain
+
     var solved = false;
     var checkBoxClicked = false;
     var waitingForAudioResponse = false;
@@ -194,67 +203,64 @@ export function captcha() {
                 console.log("An error occurred while solving. Stopping the solver.");
                 clearInterval(startInterval);
             }
-        }, 200);
-    }
-
-    const gmVariable = 'captchaAutofillEnabled';
-    const isAutofillEnabled = GM_getValue(gmVariable, false);
-
-    if (isAutofillEnabled) {
-        GM_setValue('captchaSolved', false);
-        runCaptchaSolver();
+        }, 25);
     }
 
     // if the url matches *politicsandwar.com
-    const isPWPage = urlMatches(/politicsandwar.com/);
-    if (!isPWPage) return;
+    if (GM_getValue('captchaAutofillEnabled', false)) {
+        GM_setValue('captchaSolved', false);
+        runCaptchaSolver();
+    }
     const hasCaptcha = qSelector('.g-recaptcha');
     if (!hasCaptcha) return;
+
+    addCheckboxWithGMVariable(
+        'captchaAutofillEnabled',
+        'Captcha Autofill',
+        (checked) => { // Click
+            GM_setValue('captchaAutofillEnabled', checked);
+        },
+        (checked) => { /* nothing */ },
+        hasCaptcha,
+        true
+    );
+
+
+    if (!isPWPage) return;
     const form = document.querySelector('form');
     if (!form) return;
     const buttons = form.querySelectorAll('button');
     const lastButton = buttons[buttons.length - 1] as HTMLButtonElement;
     if (!lastButton) return;
-    const toggleCheckbox = document.createElement('input');
-    toggleCheckbox.type = 'checkbox';
-    toggleCheckbox.checked = isAutofillEnabled;
-    toggleCheckbox.id = 'captcha-autofill-toggle';
 
-    const label = document.createElement('label');
-    label.htmlFor = 'captcha-autofill-toggle';
-    label.textContent = 'Enable Captcha Autofill';
-
-    toggleCheckbox.addEventListener('change', () => {
-        GM_setValue(gmVariable, toggleCheckbox.checked);
-    });
-
-    const container = document.createElement('div');
-    container.appendChild(label);
-    container.appendChild(toggleCheckbox);
-    const info = document.createElement('p');
-    info.innerHTML = 'Append <kbd>?auto=true</kbd> to the query string to submit when the captcha is solved';
-    container.appendChild(info);
-    const copyButton = document.createElement('button');
-    copyButton.textContent = 'Copy Auto url';
-    copyButton.className = 'pw-btn pw-btn-text-white pw-btn-blue';
-    copyButton.addEventListener('click', (event) => {
-        event.preventDefault(); // Prevent form submission
-        const url = new URL(window.location.href);
-        url.searchParams.set('auto', 'true');
-        navigator.clipboard.writeText(url.toString()).then(() => {
-            alert('Copied Auto URL to clipboard');
+    { // Auto url
+        const container = document.createElement('div');
+        container.style.padding = '4px';
+        const info = document.createElement('p');
+        info.innerHTML = 'Append <kbd>?auto=true</kbd> to the query string to submit when the captcha is solved';
+        container.appendChild(info);
+        const copyButton = document.createElement('button');
+        copyButton.textContent = 'Copy Auto url';
+        copyButton.className = 'pw-btn pw-btn-text-white pw-btn-blue';
+        copyButton.addEventListener('click', (event) => {
+            event.preventDefault(); // Prevent form submission
+            const url = new URL(window.location.href);
+            url.searchParams.set('auto', 'true');
+            navigator.clipboard.writeText(url.toString()).then(() => {
+                alert('Copied Auto URL to clipboard');
+            });
         });
-    });
 
-    container.appendChild(copyButton);
-    lastButton.insertAdjacentElement('beforebegin', container);
+        container.appendChild(copyButton);
+        lastButton.insertAdjacentElement('beforebegin', container);
 
-    const isAutoDeclare = new URLSearchParams(window.location.search).get('auto');
-    if (isAutoDeclare) {
-        GM_addValueChangeListener('captchaSolved', (key, oldValue, newValue, remote) => {
-            if (newValue) {
-                lastButton.click();
-            }
-        });
+        const isAutoDeclare = new URLSearchParams(window.location.search).get('auto');
+        if (isAutoDeclare) {
+            GM_addValueChangeListener('captchaSolved', (key, oldValue, newValue, remote) => {
+                if (newValue) {
+                    lastButton.click();
+                }
+            });
+        }
     }
 }
