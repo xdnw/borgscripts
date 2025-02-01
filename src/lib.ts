@@ -35,10 +35,13 @@ export function addButton(text: string, onClick: () => void, parent?: HTMLElemen
     return button;
 }
 
-export function createElement(tag: string, attributes: { [key: string]: string }, parent?: HTMLElement): HTMLElement {
+export function createElement(tag: string, attributes: { [key: string]: string }, parent?: HTMLElement, classes?: string[]): HTMLElement {
     const element = document.createElement(tag);
     for (const key in attributes) {
         element.setAttribute(key, attributes[key]);
+    }
+    if (classes) {
+        element.classList.add(...classes);
     }
     if (parent) {
         parent.appendChild(element);
@@ -125,7 +128,7 @@ const si = [
     { value: 1E6, symbol: "M" },
     { value: 1E3, symbol: "k" }
 ];
-export function formatSi(num: number): string {
+export function formatSi(num: number, fixed: number = 2): string {
     if (num === undefined) return num;
     const isNegative = num < 0;
     num = Math.abs(num);
@@ -133,7 +136,7 @@ export function formatSi(num: number): string {
     for (let i = 0; i < si.length; i++) {
         if (num >= si[i].value) {
             const formattedNum = num / si[i].value;
-            const result = (formattedNum % 1 === 0 ? formattedNum.toString() : formattedNum.toFixed(2)) + si[i].symbol;
+            const result = (formattedNum % 1 === 0 ? formattedNum.toString() : formattedNum.toFixed(fixed)) + si[i].symbol;
             return isNegative ? '-' + result : result;
         }
     }
@@ -191,5 +194,31 @@ export async function post(url: string, data: URLSearchParams): Promise<Document
         }
         window.open(response.url, '_blank');
         alert("Please complete the captcha in the new tab, then try again.");
+    }
+}
+
+export function createElementText(tag: string, classes: string[], textContent?: string): HTMLElement {
+    const element = document.createElement(tag);
+    element.classList.add(...classes);
+    if (textContent) {
+        element.textContent = textContent;
+    }
+    return element;
+}
+
+export function replaceTextWithoutRemovingChildren(element: HTMLElement, newText: string) {
+    // Iterate over all child nodes to find the text node
+    let replaced = false;
+    for (let i = 0; i < element.childNodes.length; i++) {
+        const child = element.childNodes[i];
+        if (child.nodeType === Node.TEXT_NODE && child.textContent) {
+            child.textContent = newText;
+            newText = "";
+            replaced = true;
+        }
+    }
+    if (!replaced) {
+        const newTextNode = document.createTextNode(newText);
+        element.insertBefore(newTextNode, element.firstChild);
     }
 }

@@ -71,8 +71,6 @@ export function parseResourceHtml(elem: Element): { [key in Resources]?: number 
         const resourceValue = resourceValueText ? parseFloat(resourceValueText) : 0;
         const resourceEnum = parseResource(resourceLabel.toLowerCase());
 
-        console.log("Resource label: " + resourceLabel + " Resource value: " + resourceValue + " Resource enum: " + resourceEnum);
-
         if (resourceEnum) {
             resourceMap[resourceEnum] = resourceValue;
         }
@@ -189,13 +187,15 @@ export class AttackInfo {
     low_rss: boolean;
     odds: number[];
     requirePrompt: boolean;
+    mapCost: number;
 
-    constructor(endpoint: string, consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[]) {
+    constructor(endpoint: string, consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], map: number) {
         this.endpoint = endpoint;
         this.consumption = consumption;
         this.low_rss = low_rss;
         this.odds = odds;
         this.requirePrompt = odds[3] <= 0.01;
+        this.mapCost = map;
     }
 
     toString(): string {
@@ -208,7 +208,7 @@ export class AttackInfo {
     }
 
     postData(): { [key: string]: string } {
-        const baseProperties = new AttackInfo('', {}, false, []);
+        const baseProperties = new AttackInfo('', {}, false, [], 0);
         const extendedProperties: { [key: string]: any } = {};
 
         for (const key in this) {
@@ -228,13 +228,13 @@ export class AttackInfo {
     }
 }
 
-class GroundAttack extends AttackInfo {
+export class GroundAttack extends AttackInfo {
     attSoldiers: number;
     attTanks: number;
     soldiersUseMunitions: boolean;
 
     constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attSoldiers: number, attTanks: number, soldiersUseMunitions: boolean) {
-        super('groundbattle', consumption, low_rss, odds);
+        super('groundbattle', consumption, low_rss, odds, 3);
         this.attSoldiers = attSoldiers;
         this.attTanks = attTanks;
         this.soldiersUseMunitions = soldiersUseMunitions;
@@ -259,12 +259,12 @@ export enum AirstrikeTarget {
     TARGET_MONEY = "airstrike4",
     TARGET_INFRASTRUCTURE = "airstrike1"
 }
-class Airstrike extends AttackInfo {
+export class Airstrike extends AttackInfo {
     attAircraft: number;
     type: AirstrikeTarget;
 
     constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attAircraft: number, type: AirstrikeTarget) {
-        super('airstrike', consumption, low_rss, odds);
+        super('airstrike', consumption, low_rss, odds, 4);
         this.attAircraft = attAircraft;
         this.type = type;
     }
@@ -274,11 +274,11 @@ class Airstrike extends AttackInfo {
     }
 }
 
-class NavalAttack extends AttackInfo {
+export class NavalAttack extends AttackInfo {
     attShips: number;
 
     constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attShips: number) {
-        super('navalbattle', consumption, low_rss, odds);
+        super('navalbattle', consumption, low_rss, odds, 4);
         this.attShips = attShips;
     }
 
@@ -332,6 +332,64 @@ const UNIT_PURCHASES = {
     Nukes: { url: "https://politicsandwar.com/nation/military/nukes/", id: "aircraftinput", buyname: "ships", uniqueparam: "buyships=Manufacture%2FDecommission+Nuclear+Weapons" }
 };
 
-export function rebuy() {
+export interface BattleDetails {
+    success: number;
+    resistance: number;
+    yourForces: { [unitType: string]: number };
+    opponentForces: { [unitType: string]: number };
+    munitions: number;
+    gasoline: number;
+    infrastructureDestroyed: number;
+}
 
+export function extractBattleDetailsInferred(text: string, attack: AttackInfo) {
+    let unitTypes: string[] = [];
+    if (attack instanceof GroundAttack) {
+        unitTypes = ['soldiers', 'tanks'];
+    } else if (attack instanceof Airstrike) {
+        unitTypes = ['aircraft'];
+    } else if (attack instanceof NavalAttack) {
+        unitTypes = ['ships'];
+    }
+    return extractBattleDetails(text, unitTypes);
+}
+
+export function extractBattleDetails(text: string, unitTypes: string[]): BattleDetails {
+    const resistanceMatch = /losing (\d+) resistance/.exec(text);
+    const yourForcesMatch = /Your forces lost ([\d\s\w,]+) while/.exec(text);
+    const opponentForcesMatch = /while ([\w\s']+?)'s defenders lost ([\d\s\w,]+)/.exec(text);
+    const munitionsMatch = /used ([\d.]+) munitions/.exec(text);
+    const gasolineMatch = /([\d.]+) gasoline/.exec(text);
+    const infrastructureMatch = /destroyed as well as (\d+) infrastructure/.exec(text);
+    const successStr = /The attack was an ([a-z]+ [a-z]+),/.exec(text);
+    const successMap: { [key: string]: number } = {
+        "utter failure": 0,
+        "pyrrhic victory": 1,
+        "moderate success": 2,
+        "immense triumph": 3
+    };
+    const successOrdinal = successStr ? successMap[successStr[1]] ?? -1 : -1;
+
+    const parseForces = (forces: string, unitTypes: string[]) => {
+        return unitTypes.reduce((acc, unitType) => {
+            const regex = new RegExp(`(\\d+)\\s+${unitType}`);
+            const match = regex.exec(forces);
+            if (match) {
+                acc[unitType] = parseInt(match[1]);
+            } else {
+                acc[unitType] = 0;
+            }
+            return acc;
+        }, {} as { [unitType: string]: number });
+    };
+
+    return {
+        success: successOrdinal,
+        resistance: resistanceMatch ? parseInt(resistanceMatch[1]) : 0,
+        yourForces: yourForcesMatch ? parseForces(yourForcesMatch[1], unitTypes) : {},
+        opponentForces: opponentForcesMatch ? parseForces(opponentForcesMatch[2], unitTypes) : {},
+        munitions: munitionsMatch ? parseFloat(munitionsMatch[1]) : 0,
+        gasoline: gasolineMatch ? parseFloat(gasolineMatch[1]) : 0,
+        infrastructureDestroyed: infrastructureMatch ? parseInt(infrastructureMatch[1]) : 0,
+    };
 }

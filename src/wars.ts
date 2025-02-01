@@ -1,10 +1,8 @@
-import {AttackInfo, getOdds, getResources, getValidAttacks, groundStrength, MilitaryUnits} from "./pw-util";
-import {get, post, span} from "./lib";
+import {Airstrike, AirstrikeTarget, AttackInfo, BattleDetails, extractBattleDetailsInferred, getOdds, getResources, getValidAttacks, GroundAttack, groundStrength, MilitaryUnits, NavalAttack, Status} from "./pw-util";
+import {createElement, createElementText, formatSi, get, post, replaceTextWithoutRemovingChildren, span} from "./lib";
 
 export function initWarsPage() {
     const url = "/index.php?id=15&amp;keyword=1725.26&amp;cat=war_range&amp;ob=score&amp;od=ASC&amp;maximum=15&amp;minimum=0&amp;search=Go&amp;beige=true&amp;vmode=false&amp;openslots=true";
-    // find a href with the above url
-
     removeElems();
     initMyUnits();
 }
@@ -98,7 +96,7 @@ function parseCardSide(card: Element, side: boolean): CardSide {
         }
     }
     if (hasStatus) { // status
-        const statusDiv = sideElements[9].children[o];
+        const statusDiv = sideElements[8].children[o];
         const statusIcons = statusDiv.querySelectorAll('.pw-tooltip-content');
         statusIcons.forEach(icon => {
             status.push(icon.textContent!.trim().toLowerCase());
@@ -130,12 +128,172 @@ function parseCardSide(card: Element, side: boolean): CardSide {
     return { name, nation_id, alliance_id, alliance_name, soldier, tank, aircraft, ship, missile, nuke, resistance, map, status };
 }
 
+function setCard(card: CardInfo, attack: AttackInfo, details: BattleDetails) {
+    card.other.resistance = Math.max(card.other.resistance - details.resistance, 0);
+    card.self.map = Math.max(card.self.map - attack.mapCost, 0);
+
+    card.self.soldier! = Math.max(0, card.self.soldier! - (details.yourForces.soldiers ?? 0));
+    card.self.tank! = Math.max(0, card.self.tank! - (details.yourForces.tanks ?? 0));
+    card.self.aircraft! = Math.max(0, card.self.aircraft! - (details.yourForces.aircraft ?? 0));
+    card.self.ship! = Math.max(0, card.self.ship! - (details.yourForces.ships ?? 0));
+
+    card.other.soldier! = Math.max(0, card.other.soldier! - (details.opponentForces.soldiers ?? 0));
+    card.other.tank! = Math.max(0, card.other.tank! - (details.opponentForces.tanks ?? 0));
+    card.other.aircraft! = Math.max(0, card.other.aircraft! - (details.opponentForces.aircraft ?? 0));
+    card.other.ship! = Math.max(0, card.other.ship! - (details.opponentForces.ships ?? 0));
+
+    const selfStatusCopy = [...card.self.status];
+    const otherStatusCopy = [...card.other.status];
+    if (details.success !== 0) {
+        const it = details.success === 3;
+        if (attack instanceof GroundAttack) {
+            card.other.status = card.other.status.filter(status => status !== Status.GROUND_CONTROL);
+            // add to card.self.status if not present
+            if (it && !card.self.status.includes(Status.GROUND_CONTROL)) {
+                card.self.status.push(Status.GROUND_CONTROL);
+            }
+        } else if (attack instanceof Airstrike) {
+            card.other.status = card.other.status.filter(status => status !== Status.AIR_SUPERIORITY);
+            if (it && !card.self.status.includes(Status.AIR_SUPERIORITY)) {
+                card.self.status.push(Status.AIR_SUPERIORITY);
+            }
+        } else if (attack instanceof NavalAttack) {
+            card.other.status = card.other.status.filter(status => status !== Status.NAVAL_BLOCKADING);
+            if (it && !card.self.status.includes(Status.NAVAL_BLOCKADING)) {
+                card.self.status.push(Status.NAVAL_BLOCKADING);
+            }
+        }
+    }
+    const hasStatusChanged = selfStatusCopy.length !== card.self.status.length || otherStatusCopy.length !== card.other.status.length;
+    let sideElements = card.element.querySelectorAll('.grid.grid-cols-2.gap-2');
+
+    if (hasStatusChanged) {
+        const hasStatus = sideElements.length === 17;
+        let selfIconsDiv: Element | null = null;
+        let otherIconsDiv: Element | null = null;
+        if ((card.self.status || card.other.status) && !hasStatus) {
+            const div1 = createElementText('div', ['grid', 'grid-cols-2', 'gap-2', 'mt-0.5']);
+            const p1 = createElementText('p', ['pw-title-xs']);
+            p1.textContent = 'Statuses';
+            const p2 = createElementText('p', ['pw-title-xs', 'float-right', 'text-right']);
+            p2.textContent = "Opponent's Statuses";
+            div1.appendChild(p1);
+            div1.appendChild(p2);
+        
+            const div2 = createElementText('div', ['grid', 'grid-cols-2', 'gap-2', 'mt-0.5']);
+            selfIconsDiv = createElementText('div', ['mr-auto', 'inline-flex', 'gap-0.5']);
+            otherIconsDiv = createElementText('div', ['ml-auto', 'inline-flex', 'gap-0.5', 'flex-row-reverse']);
+            div2.appendChild(selfIconsDiv);
+            div2.appendChild(otherIconsDiv);
+        
+            card.element.insertBefore(div1, card.element.children[8]);
+            card.element.insertBefore(div2, card.element.children[9]);
+        } else {
+            selfIconsDiv = sideElements[8].children[0];
+            otherIconsDiv = sideElements[8].children[1];
+        }
+        // clear self and other
+        selfIconsDiv.innerHTML = '';
+        otherIconsDiv.innerHTML = '';
+        const shortHand: { [key: string]: string } = {
+            'ground control': 'GC',
+            'air superiority': 'AS',
+            'naval blockading': 'NB'
+        };
+        card.self.status.forEach(status => {
+            selfIconsDiv.appendChild(span(shortHand[status]));
+        });
+        card.other.status.forEach(status => {
+            otherIconsDiv.appendChild(span(shortHand[status]));
+        });
+
+        sideElements = card.element.querySelectorAll('.grid.grid-cols-2.gap-2');
+    }
+
+    const hasStatus = sideElements.length === 17;
+    const statusO = hasStatus ? 2 : 0;
+    { // Resistance
+        const opponentResDiv = sideElements[8 + statusO].children[1];
+        const resistanceValue = card.other.resistance; // Assuming this is the new resistance value
+    
+        // Find the existing progress bar and text elements
+        const progressBarDiv = opponentResDiv.children[0] as HTMLElement;
+        const textDiv = opponentResDiv.children[1] as HTMLElement;
+    
+        // Update the width of the progress bar
+        if (progressBarDiv) {
+            progressBarDiv.style.width = `${resistanceValue}%`;
+        }
+    
+        // Update the text content
+        if (textDiv) {
+            textDiv.textContent = `${resistanceValue}/100`;
+        }
+    }
+    { // self MAP
+        const selfMapDiv = sideElements[10 + statusO].children[0];
+        const mapValue = card.self.map; // Assuming this is the new map value
+    
+        // Find the existing progress bar and text elements
+        const progressBarDiv = selfMapDiv.children[0] as HTMLElement;
+        const textDiv = selfMapDiv.children[1] as HTMLElement;
+    
+        // Update the width of the progress bar
+        if (progressBarDiv) {
+            progressBarDiv.style.width = `${mapValue / 0.12}%`;
+        }
+    
+        // Update the text content
+        if (textDiv) {
+            textDiv.textContent = `${mapValue}/12`;
+        }
+    }
+
+    { // units
+        const unitDivParent = sideElements[12 + statusO] as HTMLElement;
+        updateUnits(unitDivParent, false, card.self);
+        updateUnits(unitDivParent, true, card.other);
+    }
+}
+
+function updateUnits(unitParentDiv: HTMLElement, side: boolean, info: CardSide) {
+    const unitDiv = unitParentDiv.children[side ? 1 : 0];
+    const unitIcons = unitDiv.querySelectorAll('.pw-tooltip');
+    updateUnit(unitIcons[0], 'soldiers', info.soldier!);
+    updateUnit(unitIcons[1], 'aircraft', info.aircraft!);
+    updateUnit(unitIcons[2], 'missiles', info.missile!);
+    updateUnit(unitIcons[3], 'tanks', info.tank!);
+    updateUnit(unitIcons[4], 'ships', info.ship!);
+    updateUnit(unitIcons[5], 'nukes', info.nuke!);
+}
+
+function updateUnit(unitDiv: Element, unit: string, value: number) {
+    const unitSI = formatSi(value, 1);
+    replaceTextWithoutRemovingChildren(unitDiv.children[0] as HTMLElement, unitSI);
+    unitDiv.children[1].textContent = value + " " + unit;
+}
+
+function test(cards: CardInfo[]) {
+    const dummyDetails: BattleDetails = {
+        success: 3,
+        resistance: 20,
+        yourForces: { soldiers: -321321, tanks: -10000 },
+        opponentForces: { soldiers: 500, tanks: 50 },
+        munitions: 100,
+        gasoline: 100,
+        infrastructureDestroyed: 5,
+    };
+    const dummyAttack = new GroundAttack({}, false, [0, 0, 0, 1], 500, 500, true);
+    setCard(cards[0], dummyAttack, dummyDetails);
+}
+
 function initMyUnits() {
     const cards: CardInfo[] = parseUnits();
     if (!cards) return;
 
     for (const card of cards) {
         const attacks = getValidAttacks(card);
+        console.log(attacks);
 
         // iterate each attack, generate attack button, appendChild to card
         for (const attack of attacks) {
@@ -207,6 +365,9 @@ function executeAttack(attack: AttackInfo, element: HTMLButtonElement, card: Car
             const resultsElem = doc.querySelector('#results');
             if (resultsElem) {
                 setAlert(resultsElem.innerHTML, true);
+                const resultStr = resultsElem.textContent as string;
+                const details = extractBattleDetailsInferred(resultStr, attack);
+                setCard(card, attack, details);
             } else {
                 const errorElem = doc.querySelector('.pw-alert-red');
                 if (errorElem) {
@@ -253,13 +414,3 @@ function updateResources(doc: Document) {
     if (!newInfoBar) return;
     infoBar.replaceWith(newInfoBar);
 }
-
-function parseResistance(msg: string) {
-    const resMatch = msg.match(/losing (\d+) resistance/);
-    if (resMatch) {
-        return parseInt(resMatch[1]);
-    }
-    return -1;
-}
-
-//
