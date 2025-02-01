@@ -50,8 +50,9 @@ function extractBattleDetails(text: string, unitTypes: string[]): BattleDetails 
 const unitTypes = ["soldiers", "tanks"];
 const battleDetails = extractBattleDetails(text, unitTypes);
 
-alert(JSON.stringify(battleDetails, null, 2));
+console.log(JSON.stringify(battleDetails, null, 2));
 
+if (false) {
 try {
 // All pages
     captcha();
@@ -80,4 +81,5 @@ try {
     }
 } catch (e) {
     console.error(e);
+}
 }

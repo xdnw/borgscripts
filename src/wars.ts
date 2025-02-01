@@ -253,13 +253,3 @@ function updateResources(doc: Document) {
     if (!newInfoBar) return;
     infoBar.replaceWith(newInfoBar);
 }
-
-function parseResistance(msg: string) {
-    const resMatch = msg.match(/losing (\d+) resistance/);
-    if (resMatch) {
-        return parseInt(resMatch[1]);
-    }
-    return -1;
-}
-
-//

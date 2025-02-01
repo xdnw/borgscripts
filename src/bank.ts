@@ -1,9 +1,8 @@
 import $ from 'jquery';
-require('webpack-jquery-ui/dialog');
 // require('webpack-jquery-ui/css');
-
+const REQUEST_URL_DEFAULT = "https://locutus.link/bankrequests";
+const CALLBACK_URL_DEFAULT = "https://locutus.link/bankcallback";
 const FEATURE_BANK_POLLING = false;
-
 /*
 Warchest
 */
@@ -281,11 +280,9 @@ let serializeQuery = function(obj: { [key: string]: string }) {
     return str.join("&");
 }
 
-let REQUEST_URL = GM_getValue("REQUEST_URL", "https://locutus.link/bankrequests");
-let CALLBACK_URL = GM_getValue("CALLBACK_URL", "https://locutus.link/bankcallback");
-let BANK_POLLING_ENABLED = GM_getValue("BANK_POLLING_ENABLED", false);
 
 function sendFundsTask(data: string) {
+    let REQUEST_URL = GM_getValue("REQUEST_URL", REQUEST_URL_DEFAULT);
     if (data) {
         let transferInfo = JSON.parse(data);
         let token = transferInfo.token;
@@ -335,6 +332,9 @@ function sendFundsTask(data: string) {
 }
 
 function configureBankListener() {
+    let REQUEST_URL = GM_getValue("REQUEST_URL", REQUEST_URL_DEFAULT);
+    let CALLBACK_URL = GM_getValue("CALLBACK_URL", CALLBACK_URL_DEFAULT);
+
     let myPrompt = $(`<div id="bankDialog" title="Configure Bank API">
 <p>Enabling this task will poll a url for bank transfers</p>
 <br>
@@ -416,7 +416,6 @@ function configureBankListener() {
                 return false;
             }
             GM_setValue("BANK_POLLING_ENABLED", true);
-            BANK_POLLING_ENABLED = true;
             location.replace(window.location.href);
 
         } catch(err) {
@@ -437,12 +436,12 @@ function configureBankListener() {
 
 function cancelBankListener() {
     GM_setValue("BANK_POLLING_ENABLED", false)
-    BANK_POLLING_ENABLED = false;
     location.replace(window.location.href);
 }
 
 function initBankListener() {
-
+    let CALLBACK_URL = GM_getValue("CALLBACK_URL", CALLBACK_URL_DEFAULT);
+    let BANK_POLLING_ENABLED = GM_getValue("BANK_POLLING_ENABLED", false);
     if (BANK_POLLING_ENABLED) {
         let elem = $('<a id="banklistener" href="javascript:void(0);" class="btn btn-warning" alt="poll the ">Disable Bank API</a>');
         $("a[href$='#available-resources']").parent().prepend(elem);
@@ -490,6 +489,7 @@ function initBankListener() {
 }
 
 function pollBankRequests() {
+    let BANK_POLLING_ENABLED = GM_getValue("BANK_POLLING_ENABLED", false);
     let interval = 1 * 1000;
     let rerun = function() {
         console.log('Waiting ' + (interval / 1000) + ' seconds');
@@ -497,6 +497,7 @@ function pollBankRequests() {
     }
 
     if (BANK_POLLING_ENABLED) {
+        let REQUEST_URL = GM_getValue("REQUEST_URL", REQUEST_URL_DEFAULT);
         GM.xmlHttpRequest({
             method: "GET",
             url: REQUEST_URL,
@@ -517,8 +518,9 @@ function pollBankRequests() {
 
 export function initBankScripts() {
     if (document.getElementById("deposit")) {
-        let newCSS = GM_getResourceText ("jqueryui");
-        GM_addStyle (newCSS);
+        require('webpack-jquery-ui/dialog');
+        let newCSS = GM_getResourceText("jqueryui");
+        GM_addStyle(newCSS);
         initBankListener();
         initDisburse();
         initDepositAll();
