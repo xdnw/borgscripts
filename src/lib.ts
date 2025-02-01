@@ -116,3 +116,80 @@ export function addCheckboxWithGMVariable(
         onToggle(checkbox.checked);
     });
 }
+
+const si = [
+    { value: 1E18, symbol: "E" },
+    { value: 1E15, symbol: "P" },
+    { value: 1E12, symbol: "T" },
+    { value: 1E9, symbol: "B" },
+    { value: 1E6, symbol: "M" },
+    { value: 1E3, symbol: "k" }
+];
+export function formatSi(num: number): string {
+    if (num === undefined) return num;
+    const isNegative = num < 0;
+    num = Math.abs(num);
+
+    for (let i = 0; i < si.length; i++) {
+        if (num >= si[i].value) {
+            const formattedNum = num / si[i].value;
+            const result = (formattedNum % 1 === 0 ? formattedNum.toString() : formattedNum.toFixed(2)) + si[i].symbol;
+            return isNegative ? '-' + result : result;
+        }
+    }
+
+    const result = (num % 1 === 0 ? num.toString() : num.toFixed(2));
+    return isNegative ? '-' + result : result;
+}
+
+export function span(text: string, images?: string[]) {
+    const span = document.createElement('span');
+    span.classList.add('text-xs', 'rounded', 'text-white', 'px-2');
+    span.style.backgroundColor = "rgba(0,0,0,0.5)";
+    span.style.marginLeft = "1px";
+    span.textContent = text;
+    if (images) {
+        images.forEach(src => {
+            const img = document.createElement('img');
+            img.src = src;
+            img.style.width = '16px';
+            img.style.height = '16px';
+            img.style.marginLeft = '1px';
+            span.appendChild(img);
+        });
+    }
+    return span;
+}
+
+export async function get(url: string): Promise<Document> {
+    while (true) {
+        const response = await fetch(url, { method: 'GET', credentials: 'same-origin' });
+        if (!/https:\/\/(test\.)?politicsandwar\.com\/human\//.test(response.url)) {
+            const text = await response.text();
+            return new DOMParser().parseFromString(text, "text/html");
+        }
+        window.open(response.url, '_blank');
+        alert("Please complete the captcha in the new tab, then try again.");
+    }
+}
+
+export async function post(url: string, data: URLSearchParams): Promise<Document> {
+    console.log(url, data);
+    while (true) {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: data.toString(),
+            credentials: 'same-origin'
+        });
+        if (!/https:\/\/(test\.)?politicsandwar\.com\/human\//.test(response.url)) {
+            const text = await response.text();
+            return new DOMParser().parseFromString(text, "text/html");
+        }
+        window.open(response.url, '_blank');
+        alert("Please complete the captcha in the new tab, then try again.");
+    }
+}

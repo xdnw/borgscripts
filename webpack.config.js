@@ -77,9 +77,9 @@ module.exports = {
     },
     optimization: {
         minimize: !dev,
-        minimizer: [new TerserPlugin({
+        minimizer: !dev ? [new TerserPlugin({
             parallel: true, // Enable parallel processing
-        })],
+        })] : [],
     },
     output: {
         filename: 'locutus.js',

@@ -1,3 +1,6 @@
+import {CardInfo} from "./wars";
+import {formatSi} from "./lib";
+
 export function getOdds(attStrength: number, defStrength: number, success: number): number {
     attStrength = Math.pow(attStrength, 0.75);
     defStrength = Math.pow(defStrength, 0.75);
@@ -7,9 +10,9 @@ export function getOdds(attStrength: number, defStrength: number, success: numbe
     const b1 = defStrength * 0.4;
     const b2 = defStrength;
 
-    if (attStrength <= 0) return 0;
+    if (attStrength <= 0) return success === 0 ? 1 : 0;
     if (defStrength * 2.5 <= attStrength) return success === 3 ? 1 : 0;
-    if (a2 <= b1 || b2 <= a1) return 0;
+    if (a2 <= b1 || b2 <= a1) return success === 0 ? 1 : 0;
 
     const sampleSpace = (a2 - a1) * (b2 - b1);
     const overlap = Math.min(a2, b2) - Math.max(a1, b1);
@@ -27,34 +30,14 @@ export function getOdds(attStrength: number, defStrength: number, success: numbe
     return odds * npr;
 }
 
+export function getOddsArr(attStrength: number, defStrength: number): number[] {
+    return [0, 1, 2, 3].map(success => getOdds(attStrength, defStrength, success));
+}
+
 function factorial(n: number): number {
     return n <= 1 ? 1 : n * factorial(n - 1);
 }
 
-/*
-<span style="float:right;">
-<!--Credits-->
-<a aria-label="Credits" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=credits&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go">
-<img src="https://test.politicsandwar.com/img/icons/16/point_gold.png" data-toggle="tooltip" data-placement="bottom" title="" style="width:16px; height:16px;" data-original-title="Credits"></a>
-0                        <!--Coal-->
-<a aria-label="Coal" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=coal&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go">
-<img src="https://test.politicsandwar.com/img/resources/coal.png" data-toggle="tooltip" data-placement="bottom" title="" style="width:16px; height:16px;" data-original-title="Coal"></a>
-141,991.00                        <!--Oil-->
-<a aria-label="Oil" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=oil&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go"><img src="https://test.politicsandwar.com/img/resources/oil.png" data-toggle="tooltip" data-placement="bottom" title="" style="width:16px; height:16px;" data-original-title="Oil"></a> 141,991.00                        <!--Uranium-->
-<a aria-label="Uranium" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=uranium&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go"><img src="https://test.politicsandwar.com/img/resources/uranium.png" data-toggle="tooltip" data-placement="bottom" title="" style="width:16px; height:16px;" data-original-title="Uranium"></a> 141,991.00                        <!--Lead-->
-<a aria-label="Lead" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=lead&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go">
-<img src="https://test.politicsandwar.com/img/resources/lead.png" data-toggle="tooltip" data-placement="bottom" title="" style="width:16px; height:16px;" data-original-title="Lead">
-</a>
-141,955.80                        <!--Iron-->
-<a aria-label="Iron" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=iron&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go">
-<img src="https://test.politicsandwar.com/img/resources/iron.png" data-toggle="tooltip" data-placement="bottom" title="" style="width:16px; height:16px;" data-original-title="Iron"></a> 141,991.00                        <a aria-label="Bauxite" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=bauxite&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go"><img src="https://test.politicsandwar.com/img/resources/bauxite.png" data-toggle="tooltip" data-placement="bottom" title="" style="height:16px; width:16px;" data-original-title="Bauxite"></a> 141,991.00                        <a aria-label="Gasoline" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=gasoline&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go"><img src="https://test.politicsandwar.com/img/resources/gasoline.png" data-toggle="tooltip" data-placement="bottom" title="" style="height:16px; width:16px;" data-original-title="Gasoline"></a> 141,991.00                        <a aria-label="Munitions" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=munitions&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go"><img src="https://test.politicsandwar.com/img/resources/munitions.png" data-toggle="tooltip" data-placement="bottom" title="" style="width:16px; height:16px;" data-original-title="Munitions"></a> 141,991.00                        <a aria-label="Steel" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=steel&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go"><img src="https://test.politicsandwar.com/img/resources/steel.png" data-toggle="tooltip" data-placement="bottom" title="" style="width:16px; height:16px;" data-original-title="Steel"></a>141,926.00                        <a aria-label="Aluminum" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=aluminum&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go"><img src="https://test.politicsandwar.com/img/resources/aluminum.png" data-toggle="tooltip" data-placement="bottom" title="" style="width:16px; height:16px;" data-original-title="Aluminum"></a> 141,851.00                        <a aria-label="Food" href="https://test.politicsandwar.com/index.php?id=90&amp;display=world&amp;resource1=food&amp;buysell=sell&amp;ob=price&amp;od=DEF&amp;maximum=50&amp;minimum=0&amp;search=Go"><img src="https://test.politicsandwar.com/img/icons/16/steak_meat.png" data-toggle="tooltip" data-placement="bottom" title="" data-original-title="Food">
-</a>
-351,169.37                        <!--Money-->
-<a aria-label="Money" href="https://test.politicsandwar.com/nation/revenue/">
-<b style="color: #28d020;" data-toggle="tooltip" data-placement="bottom" title="" data-original-title="Money">$</b>
-</a>
-1,652,316,903.56                    </span>
- */
 export enum Resources {
     CREDITS = "credits",
     COAL = "coal",
@@ -86,8 +69,10 @@ export function parseResourceHtml(elem: Element): { [key in Resources]?: number 
         const resourceLabel = resourceElement.getAttribute('aria-label') as string;
         const resourceValueText = resourceElement.nextSibling?.textContent?.trim().replace(/,/g, '');
         const resourceValue = resourceValueText ? parseFloat(resourceValueText) : 0;
+        const resourceEnum = parseResource(resourceLabel.toLowerCase());
 
-        const resourceEnum = parseResource(resourceLabel);
+        console.log("Resource label: " + resourceLabel + " Resource value: " + resourceValue + " Resource enum: " + resourceEnum);
+
         if (resourceEnum) {
             resourceMap[resourceEnum] = resourceValue;
         }
@@ -96,31 +81,210 @@ export function parseResourceHtml(elem: Element): { [key in Resources]?: number 
     return resourceMap;
 }
 
-
-export function groundStrength(soldiers: number, tanks: number, munitions: boolean) {
-    return soldiers * (munitions ? 1.75 : 1) + tanks * 40;
+export function getResources(): { [key in Resources]?: number } {
+    const infoBar = document.querySelector('.informationbar');
+    if (!infoBar) {
+        return {};
+    }
+    return parseResourceHtml(infoBar);
 }
 
-export function strengthComparison(attacker: MilitaryUnits, defender: MilitaryUnits): {
-    GROUND_NO_MUNITIONS: number,
-    GROUND_NO_TANKS: number,
-    GROUND: number,
-    AIR: number,
-    SHIP: number
-} {
-    const defGroundStr = groundStrength(defender.soldier!, defender.tank!, true);
 
-    const attNoTankNoMuni = groundStrength(attacker.soldier!, 0, false);
-    const attNoTank = groundStrength(attacker.soldier!, 0, true);
-    const attGround = groundStrength(attacker.soldier!, attacker.tank!, true);
+export function groundStrength(soldiers: number, tanks: number, munitions: boolean, opponentAS: boolean): number {
+    return soldiers * (munitions ? 1.75 : 1) + tanks * 40 * (opponentAS ? 0.5 : 1);
+}
 
-    return {
-        GROUND_NO_MUNITIONS: defGroundStr == 0 && attNoTankNoMuni > 0 ? Number.MAX_SAFE_INTEGER : attNoTankNoMuni / defGroundStr,
-        GROUND_NO_TANKS: defGroundStr == 0 && attNoTank > 0 ? Number.MAX_SAFE_INTEGER : attNoTank / defGroundStr,
-        GROUND: defGroundStr == 0 && attGround > 0 ? Number.MAX_SAFE_INTEGER : attGround / defGroundStr,
-        AIR: defender.aircraft == 0 && attacker.aircraft != 0 ? Number.MAX_SAFE_INTEGER : attacker.aircraft! / defender.aircraft!,
-        SHIP: defender.ship == 0 && attacker.ship != 0 ? Number.MAX_SAFE_INTEGER : attacker.ship! / defender.ship!
+export function attacksForConsumption(resourcesPerAttack: { [key in Resources]?: number }, resources: { [key in Resources]?: number }): number {
+    let attacks = Number.MAX_SAFE_INTEGER;
+    for (const key in resourcesPerAttack) {
+        if (resourcesPerAttack.hasOwnProperty(key)) {
+            const resource = key as Resources;
+            const resourcePerAttack = resourcesPerAttack[resource]!;
+            const resourceAmount = resources[resource] || 0;
+            if (resourcePerAttack > 0) {
+                attacks = Math.min(attacks, Math.floor(resourceAmount / resourcePerAttack));
+            }
         }
+    }
+    return attacks;
+}
+
+export function addOrSubtractResources(resources: { [key in Resources]?: number }, resourcesToAdd: { [key in Resources]?: number }, subtract: boolean): { [key in Resources]?: number } {
+    const newResources = { ...resources };
+    for (const key in resourcesToAdd) {
+        if (resourcesToAdd.hasOwnProperty(key)) {
+            const resource = key as Resources;
+            const resourceAmount = resourcesToAdd[resource]!;
+            newResources[resource] = (resources[resource] || 0) + (subtract ? -resourceAmount : resourceAmount);
+        }
+    }
+    return newResources;
+}
+
+export function getValidAttacks(card: CardInfo): AttackInfo[] {
+    const attMap = card.self.map;
+    const attacker = card.self;
+    const defender = card.other;
+
+    const resources = getResources();
+    const validAttacks: AttackInfo[] = [];
+    if (attMap >= 3 && attacker.soldier! >= 50) { // ground
+        const defGroundStr = groundStrength(defender.soldier!, defender.tank!, true, card.self.status.includes(Status.AIR_SUPERIORITY));
+        const ga1 = new GroundAttack({}, false, getOddsArr(attacker.soldier!, defGroundStr), attacker.soldier!, 0, false);
+        validAttacks.push(ga1);
+        const perSoldier = attackConsumption({ soldier: 1 });
+        const maxSoldiers = Math.min(attacker.soldier!, attacksForConsumption(perSoldier, resources));
+        const soldierConsumption = attackConsumption({ soldier: maxSoldiers });
+        if (maxSoldiers > 0) {
+            const odds1 = getOddsArr(maxSoldiers, defGroundStr);
+            if (odds1[0] != 1) {
+                if (ga1.odds[3] != 1) ga1.requirePrompt = true;
+                const ga2 = new GroundAttack(soldierConsumption, maxSoldiers < attacker.soldier!, odds1, maxSoldiers, 0, true);
+                validAttacks.push(ga2);
+                if (maxSoldiers == attacker.soldier!) { // soldiers, with muni, + tanks
+                    const remainingRss = addOrSubtractResources(resources, soldierConsumption, true);
+                    const perTank = attackConsumption({tank: 1});
+                    const maxTanks = Math.min(attacker.tank!, attacksForConsumption(perTank, remainingRss));
+                    const tankConsumption = attackConsumption({tank: maxTanks});
+                    const soldierAndTankConsumption = addOrSubtractResources(soldierConsumption, tankConsumption, false);
+                    if (maxTanks > 0) {
+                        const odds2 = getOddsArr(groundStrength(maxSoldiers, maxTanks, true, card.other.status.includes(Status.AIR_SUPERIORITY)), defGroundStr);
+                        if (odds2[0] != 1) {
+                            if (ga2.odds[3] != 1) ga2.requirePrompt = true;
+                            validAttacks.push(new GroundAttack(soldierAndTankConsumption, maxTanks < attacker.tank!, odds2, maxSoldiers, maxTanks, true));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (attMap >= 4 && attacker.aircraft! >= 3) { // air
+        const perAircraft = attackConsumption({ aircraft: 1 });
+        const maxAircraft = Math.min(attacker.aircraft!, attacksForConsumption(perAircraft, resources));
+        const aircraftConsumption = attackConsumption({ aircraft: maxAircraft });
+        if (maxAircraft > 0) {
+            const odds = getOddsArr(maxAircraft, defender.aircraft!);
+            if (odds[0] != 1) {
+                validAttacks.push(new Airstrike(aircraftConsumption, maxAircraft < attacker.aircraft!, odds, maxAircraft, AirstrikeTarget.TARGET_AIRCRAFT));
+            }
+        }
+    }
+    if (attMap >= 4) { // ship
+        const perShip = attackConsumption({ ship: 1 });
+        const maxShips = Math.min(attacker.ship!, attacksForConsumption(perShip, resources));
+        const shipConsumption = attackConsumption({ ship: maxShips });
+        if (maxShips > 0) {
+            const odds = getOddsArr(maxShips, defender.ship!);
+            if (odds[0] != 1) {
+                validAttacks.push(new NavalAttack(shipConsumption, maxShips < attacker.ship!, odds, maxShips));
+            }
+        }
+    }
+    return validAttacks;
+}
+
+export class AttackInfo {
+    endpoint: string;
+    consumption: { [key in Resources]?: number };
+    low_rss: boolean;
+    odds: number[];
+    requirePrompt: boolean;
+
+    constructor(endpoint: string, consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[]) {
+        this.endpoint = endpoint;
+        this.consumption = consumption;
+        this.low_rss = low_rss;
+        this.odds = odds;
+        this.requirePrompt = odds[3] <= 0.01;
+    }
+
+    toString(): string {
+        return `Endpoint: ${this.endpoint}, Consumption: ${JSON.stringify(this.consumption)}, Low RSS: ${this.low_rss}, Odds: ${this.odds.join(', ')}`;
+    }
+
+    prompt(value: boolean): AttackInfo {
+        this.requirePrompt = value;
+        return this;
+    }
+
+    postData(): { [key: string]: string } {
+        const baseProperties = new AttackInfo('', {}, false, []);
+        const extendedProperties: { [key: string]: any } = {};
+
+        for (const key in this) {
+            if (!(key in baseProperties)) {
+                const value = (this as any)[key];
+                if (typeof value === 'boolean') {
+                    if (value) {
+                        extendedProperties[key] = 'on';
+                    }
+                } else {
+                    extendedProperties[key] = value;
+                }
+            }
+        }
+
+        return extendedProperties;
+    }
+}
+
+class GroundAttack extends AttackInfo {
+    attSoldiers: number;
+    attTanks: number;
+    soldiersUseMunitions: boolean;
+
+    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attSoldiers: number, attTanks: number, soldiersUseMunitions: boolean) {
+        super('groundbattle', consumption, low_rss, odds);
+        this.attSoldiers = attSoldiers;
+        this.attTanks = attTanks;
+        this.soldiersUseMunitions = soldiersUseMunitions;
+    }
+
+    toString(): string {
+        return `${formatSi(this.attSoldiers)} 💂, ${formatSi(this.attTanks)} ⚙, ${this.soldiersUseMunitions ? "Armed" : "Unarmed"}`;
+    }
+}
+
+export enum Status {
+    GROUND_CONTROL = "ground control",
+    AIR_SUPERIORITY = "air superiority",
+    NAVAL_BLOCKADING = "naval blockading",
+}
+
+export enum AirstrikeTarget {
+    TARGET_AIRCRAFT = "airstrike6",
+    TARGET_SOLDIERS = "airstrike2",
+    TARGET_TANKS = "airstrike3",
+    TARGET_SHIPS = "airstrike5",
+    TARGET_MONEY = "airstrike4",
+    TARGET_INFRASTRUCTURE = "airstrike1"
+}
+class Airstrike extends AttackInfo {
+    attAircraft: number;
+    type: AirstrikeTarget;
+
+    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attAircraft: number, type: AirstrikeTarget) {
+        super('airstrike', consumption, low_rss, odds);
+        this.attAircraft = attAircraft;
+        this.type = type;
+    }
+
+    toString(): string {
+        return `${formatSi(this.attAircraft)} ✈ dogfight`;
+    }
+}
+
+class NavalAttack extends AttackInfo {
+    attShips: number;
+
+    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attShips: number) {
+        super('navalbattle', consumption, low_rss, odds);
+        this.attShips = attShips;
+    }
+
+    toString(): string {
+        return `${formatSi(this.attShips)} 🚢`;
+    }
 }
 
 export type MilitaryUnits = {
@@ -156,4 +320,18 @@ export function attackConsumption(units: MilitaryUnits): { [key in Resources]?: 
         }
     }
     return consumption;
+}
+
+const UNIT_PURCHASES = {
+    Soldiers: { url: "https://politicsandwar.com/nation/military/soldiers/", id: "soldiers", buyname: "soldiers", uniqueparam: "buysoldiers=Enlist%2FDischarge+Soldiers" },
+    Tanks: { url: "https://politicsandwar.com/nation/military/tanks/", id: "tanks", buyname: "tanks", uniqueparam: "buytanks=Manufacture%2FDecommission+Tanks" },
+    Aircraft: { url: "https://politicsandwar.com/nation/military/aircraft/", id: "aircraft", buyname: "aircraft", uniqueparam: "buyaircraft=Manufacture%2FDecommission+Aircraft" },
+    Ships: { url: "https://politicsandwar.com/nation/military/navy/", id: "ships", buyname: "ships", uniqueparam: "buyships=Manufacture%2FDecommission+Ships" },
+    Spies: { url: "https://politicsandwar.com/nation/military/spies/", id: "aircraftinput", buyname: "spies", uniqueparam: "train_spies=Enlist%2FDischarge+Spies" },
+    Missiles: { url: "https://politicsandwar.com/nation/military/missiles/", id: "aircraftinput", buyname: "missile_purchase_input_amount", uniqueparam: "missile_purchase_form_submit=Manufacture%2FDecommission+Missiles" },
+    Nukes: { url: "https://politicsandwar.com/nation/military/nukes/", id: "aircraftinput", buyname: "ships", uniqueparam: "buyships=Manufacture%2FDecommission+Nuclear+Weapons" }
+};
+
+export function rebuy() {
+
 }
