@@ -145,12 +145,16 @@ export function formatSi(num: number, fixed: number = 2): string {
     return isNegative ? '-' + result : result;
 }
 
-export function span(text: string, images?: string[]) {
+export function span(text: string, images?: string[], raw?: boolean, bg: boolean = true): HTMLSpanElement {
     const span = document.createElement('span');
-    span.classList.add('text-xs', 'rounded', 'text-white', 'px-2');
-    span.style.backgroundColor = "rgba(0,0,0,0.5)";
+    span.classList.add('text-xs', 'rounded');
+    if (bg) {
+        span.style.backgroundColor = "rgba(0,0,0,0.5)";
+        span.classList.add('text-white');
+    }
     span.style.marginLeft = "1px";
-    span.textContent = text;
+    if (raw) span.innerHTML = text;
+    else span.textContent = text;
     if (images) {
         images.forEach(src => {
             const img = document.createElement('img');

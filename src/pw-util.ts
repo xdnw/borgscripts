@@ -251,6 +251,22 @@ export enum Status {
     NAVAL_BLOCKADING = "naval blockading",
 }
 
+export function getStatusHtml(status: Status): string {
+    const icon = getStatusIcon(status);
+    return `<span class="group pw-tooltip" aria-describedby="tooltip_${status}">${icon}<div class="pw-tooltip-content" id="tooltip_${status}" role="tooltip">${status}</div></span>`;
+}
+
+export function getStatusIcon(status: Status): string {
+    switch (status) {
+        case Status.GROUND_CONTROL:
+            return `<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-tank" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"> <path stroke="none" d="M0 0h24v24H0z" fill="none"></path> <path d="M2 12m0 3a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v0a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3z"></path> <path d="M6 12l1 -5h5l3 5"></path> <path d="M21 9l-7.8 0"></path></svg>`;
+        case Status.AIR_SUPERIORITY:
+            return `<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-plane-tilt" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"> <path stroke="none" d="M0 0h24v24H0z" fill="none"></path> <path d="M14.5 6.5l3 -2.9a2.05 2.05 0 0 1 2.9 2.9l-2.9 3l2.5 7.5l-2.5 2.55l-3.5 -6.55l-3 3v3l-2 2l-1.5 -4.5l-4.5 -1.5l2 -2h3l3 -3l-6.5 -3.5l2.5 -2.5l7.5 2.5z"></path></svg>`;
+        case Status.NAVAL_BLOCKADING:
+            return `<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-ship" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"> <path stroke="none" d="M0 0h24v24H0z" fill="none"></path> <path d="M2 20a2.4 2.4 0 0 0 2 1a2.4 2.4 0 0 0 2 -1a2.4 2.4 0 0 1 2 -1a2.4 2.4 0 0 1 2 1a2.4 2.4 0 0 0 2 1a2.4 2.4 0 0 0 2 -1a2.4 2.4 0 0 1 2 -1a2.4 2.4 0 0 1 2 1a2.4 2.4 0 0 0 2 1a2.4 2.4 0 0 0 2 -1"></path> <path d="M4 18l-1 -5h18l-2 4"></path> <path d="M5 13v-6h8l4 6"></path> <path d="M7 7v-4h-1"></path></svg>`;
+    }
+}
+
 export enum AirstrikeTarget {
     TARGET_AIRCRAFT = "airstrike6",
     TARGET_SOLDIERS = "airstrike2",

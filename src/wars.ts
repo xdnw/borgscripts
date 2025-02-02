@@ -1,4 +1,19 @@
-import {Airstrike, AirstrikeTarget, AttackInfo, BattleDetails, extractBattleDetailsInferred, getOdds, getResources, getValidAttacks, GroundAttack, groundStrength, MilitaryUnits, NavalAttack, Status} from "./pw-util";
+import {
+    Airstrike,
+    AirstrikeTarget,
+    AttackInfo,
+    BattleDetails,
+    extractBattleDetailsInferred,
+    getOdds,
+    getResources,
+    getStatusHtml,
+    getValidAttacks,
+    GroundAttack,
+    groundStrength,
+    MilitaryUnits,
+    NavalAttack,
+    Status
+} from "./pw-util";
 import {createElement, createElementText, formatSi, get, post, replaceTextWithoutRemovingChildren, span} from "./lib";
 
 export function initWarsPage() {
@@ -97,7 +112,8 @@ function parseCardSide(card: Element, side: boolean): CardSide {
     }
     if (hasStatus) { // status
         const statusDiv = sideElements[8].children[o];
-        const statusIcons = statusDiv.querySelectorAll('.pw-tooltip-content');
+        let statusIcons = statusDiv.querySelectorAll('.pw-tooltip-content');
+        if (statusIcons.length === 0) statusIcons = statusDiv.querySelectorAll('.text-xs');
         statusIcons.forEach(icon => {
             status.push(icon.textContent!.trim().toLowerCase());
         });
@@ -128,43 +144,45 @@ function parseCardSide(card: Element, side: boolean): CardSide {
     return { name, nation_id, alliance_id, alliance_name, soldier, tank, aircraft, ship, missile, nuke, resistance, map, status };
 }
 
-function setCard(card: CardInfo, attack: AttackInfo, details: BattleDetails) {
-    card.other.resistance = Math.max(card.other.resistance - details.resistance, 0);
-    card.self.map = Math.max(card.self.map - attack.mapCost, 0);
-
-    card.self.soldier! = Math.max(0, card.self.soldier! - (details.yourForces.soldiers ?? 0));
-    card.self.tank! = Math.max(0, card.self.tank! - (details.yourForces.tanks ?? 0));
-    card.self.aircraft! = Math.max(0, card.self.aircraft! - (details.yourForces.aircraft ?? 0));
-    card.self.ship! = Math.max(0, card.self.ship! - (details.yourForces.ships ?? 0));
-
-    card.other.soldier! = Math.max(0, card.other.soldier! - (details.opponentForces.soldiers ?? 0));
-    card.other.tank! = Math.max(0, card.other.tank! - (details.opponentForces.tanks ?? 0));
-    card.other.aircraft! = Math.max(0, card.other.aircraft! - (details.opponentForces.aircraft ?? 0));
-    card.other.ship! = Math.max(0, card.other.ship! - (details.opponentForces.ships ?? 0));
-
+function setCard(card: CardInfo, attack: AttackInfo | undefined, details: BattleDetails | undefined) {
     const selfStatusCopy = [...card.self.status];
     const otherStatusCopy = [...card.other.status];
-    if (details.success !== 0) {
-        const it = details.success === 3;
-        if (attack instanceof GroundAttack) {
-            card.other.status = card.other.status.filter(status => status !== Status.GROUND_CONTROL);
-            // add to card.self.status if not present
-            if (it && !card.self.status.includes(Status.GROUND_CONTROL)) {
-                card.self.status.push(Status.GROUND_CONTROL);
-            }
-        } else if (attack instanceof Airstrike) {
-            card.other.status = card.other.status.filter(status => status !== Status.AIR_SUPERIORITY);
-            if (it && !card.self.status.includes(Status.AIR_SUPERIORITY)) {
-                card.self.status.push(Status.AIR_SUPERIORITY);
-            }
-        } else if (attack instanceof NavalAttack) {
-            card.other.status = card.other.status.filter(status => status !== Status.NAVAL_BLOCKADING);
-            if (it && !card.self.status.includes(Status.NAVAL_BLOCKADING)) {
-                card.self.status.push(Status.NAVAL_BLOCKADING);
+    if (attack && details) {
+        card.other.resistance = Math.max(card.other.resistance - details.resistance, 0);
+        card.self.map = Math.max(card.self.map - attack.mapCost, 0);
+
+        card.self.soldier! = Math.max(0, card.self.soldier! - (details.yourForces.soldiers ?? 0));
+        card.self.tank! = Math.max(0, card.self.tank! - (details.yourForces.tanks ?? 0));
+        card.self.aircraft! = Math.max(0, card.self.aircraft! - (details.yourForces.aircraft ?? 0));
+        card.self.ship! = Math.max(0, card.self.ship! - (details.yourForces.ships ?? 0));
+
+        card.other.soldier! = Math.max(0, card.other.soldier! - (details.opponentForces.soldiers ?? 0));
+        card.other.tank! = Math.max(0, card.other.tank! - (details.opponentForces.tanks ?? 0));
+        card.other.aircraft! = Math.max(0, card.other.aircraft! - (details.opponentForces.aircraft ?? 0));
+        card.other.ship! = Math.max(0, card.other.ship! - (details.opponentForces.ships ?? 0));
+
+        if (details.success !== 0) {
+            const it = details.success === 3;
+            if (attack instanceof GroundAttack) {
+                card.other.status = card.other.status.filter(status => status !== Status.GROUND_CONTROL);
+                // add to card.self.status if not present
+                if (it && !card.self.status.includes(Status.GROUND_CONTROL)) {
+                    card.self.status.push(Status.GROUND_CONTROL);
+                }
+            } else if (attack instanceof Airstrike) {
+                card.other.status = card.other.status.filter(status => status !== Status.AIR_SUPERIORITY);
+                if (it && !card.self.status.includes(Status.AIR_SUPERIORITY)) {
+                    card.self.status.push(Status.AIR_SUPERIORITY);
+                }
+            } else if (attack instanceof NavalAttack) {
+                card.other.status = card.other.status.filter(status => status !== Status.NAVAL_BLOCKADING);
+                if (it && !card.self.status.includes(Status.NAVAL_BLOCKADING)) {
+                    card.self.status.push(Status.NAVAL_BLOCKADING);
+                }
             }
         }
     }
-    const hasStatusChanged = selfStatusCopy.length !== card.self.status.length || otherStatusCopy.length !== card.other.status.length;
+    const hasStatusChanged = selfStatusCopy.length !== card.self.status.length || otherStatusCopy.length !== card.other.status.length || true;
     let sideElements = card.element.querySelectorAll('.grid.grid-cols-2.gap-2');
 
     if (hasStatusChanged) {
@@ -195,16 +213,13 @@ function setCard(card: CardInfo, attack: AttackInfo, details: BattleDetails) {
         // clear self and other
         selfIconsDiv.innerHTML = '';
         otherIconsDiv.innerHTML = '';
-        const shortHand: { [key: string]: string } = {
-            'ground control': 'GC',
-            'air superiority': 'AS',
-            'naval blockading': 'NB'
-        };
         card.self.status.forEach(status => {
-            selfIconsDiv.appendChild(span(shortHand[status]));
+            const statusEnum = Status[status.toUpperCase().replace(' ', '_') as keyof typeof Status];
+            selfIconsDiv.appendChild(span(getStatusHtml(statusEnum), undefined, true, false));
         });
         card.other.status.forEach(status => {
-            otherIconsDiv.appendChild(span(shortHand[status]));
+            const statusEnum = Status[status.toUpperCase().replace(' ', '_') as keyof typeof Status];
+            otherIconsDiv.appendChild(span(getStatusHtml(statusEnum), undefined, true, false));
         });
 
         sideElements = card.element.querySelectorAll('.grid.grid-cols-2.gap-2');
@@ -285,6 +300,7 @@ function test(cards: CardInfo[]) {
     };
     const dummyAttack = new GroundAttack({}, false, [0, 0, 0, 1], 500, 500, true);
     setCard(cards[0], dummyAttack, dummyDetails);
+    // setCard(cards[0], undefined, undefined);
 }
 
 function initMyUnits() {
@@ -292,14 +308,23 @@ function initMyUnits() {
     if (!cards) return;
 
     for (const card of cards) {
-        const attacks = getValidAttacks(card);
-        console.log(attacks);
+        setValidAttacks(card);
+    }
+}
 
-        // iterate each attack, generate attack button, appendChild to card
-        for (const attack of attacks) {
-            const btn = createAttackButton(attack, card);
-            card.element.appendChild(btn);
-        }
+function setValidAttacks(card: CardInfo) {
+    const attacks = getValidAttacks(card);
+    let attackDiv = document.getElementById("warcard-" + card.id);
+    if (!attackDiv) {
+        attackDiv = document.createElement('div');
+        attackDiv.id = "warcard-" + card.id;
+        card.element.appendChild(attackDiv);
+    } else {
+        attackDiv.innerHTML = ''; // Clear existing content
+    }
+    for (const attack of attacks) {
+        const btn = createAttackButton(attack, card);
+        attackDiv.appendChild(btn);
     }
 }
 
@@ -368,6 +393,7 @@ function executeAttack(attack: AttackInfo, element: HTMLButtonElement, card: Car
                 const resultStr = resultsElem.textContent as string;
                 const details = extractBattleDetailsInferred(resultStr, attack);
                 setCard(card, attack, details);
+                setValidAttacks(card);
             } else {
                 const errorElem = doc.querySelector('.pw-alert-red');
                 if (errorElem) {
