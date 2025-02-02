@@ -57,6 +57,8 @@ module.exports = {
                     'engageub.pythonanywhere.com',
                     'engageub1.pythonanywhere.com'
                 ],
+                updateURL: 'https://github.com/xdnw/borgscripts/raw/refs/heads/main/dist/locutus.user.js',
+                downloadURL: 'https://github.com/xdnw/borgscripts/raw/refs/heads/main/dist/locutus.user.js',
                 license: 'MIT',
                 // require: [
                 //     'https://code.jquery.com/jquery-3.7.1.min.js',
