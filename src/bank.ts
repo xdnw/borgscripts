@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import {getResources} from "./pw-util";
 require('webpack-jquery-ui/dialog');
 // require('webpack-jquery-ui/css');
 
@@ -8,55 +9,73 @@ const FEATURE_BANK_POLLING = false;
 Warchest
 */
 function showNationWarchest() {
-    let myPrompt = $(`<div id="nationDialog" title="Nation Warchest (json)">
+    let myPrompt = $("#nationDialog");
+    if (myPrompt.length === 0) {
+        myPrompt = $(`<div id="nationDialog" title="Nation Warchest (json)">
 <p>These are the amounts that will be kept on your nation:</p>
 <br>
 <form id="nation_wc_form">
   <textarea id="nationwarchestjson" form="nation_wc_form" placeholder="Enter code here..." rows="24" cols="50">{
-	"depmoney": "0.00",
-	"depcredits": "0.00",
-	"depfood": "0.00",
-	"depcoal": "0.00",
-	"depoil": "0.00",
-	"depuranium": "0.00",
-	"deplead": "0.00",
-	"depiron": "0.00",
-	"depbauxite": "0.00",
-	"depgasoline": "0.00",
-	"depmunitions": "0.00",
-	"depsteel": "0.00",
-	"depaluminum": "0.00"
+    "depmoney": "0.00",
+    "depcredits": "0.00",
+    "depfood": "0.00",
+    "depcoal": "0.00",
+    "depoil": "0.00",
+    "depuranium": "0.00",
+    "deplead": "0.00",
+    "depiron": "0.00",
+    "depbauxite": "0.00",
+    "depgasoline": "0.00",
+    "depmunitions": "0.00",
+    "depsteel": "0.00",
+    "depaluminum": "0.00"
 }</textarea>
   <br>
   <input type="submit" value="submit">
+  <button type="button" id="setCurrentResources">Set Current Resources</button>
 </form>
 </div>`);
 
-    $("body").after(myPrompt);
+        $("body").append(myPrompt);
 
-    $("#nation_wc_form").submit(function( event ) {
-        try {
-            let elems = JSON.parse($("#nationwarchestjson").val() as string);
-            if (elems["depmoney"] != undefined) {
-                GM_setValue("NATION_WARCHEST", elems);
-                myPrompt.remove();
-            } else {
-                alert("Invalid input:\n" + elems)
+        $("#nation_wc_form").submit(function(event) {
+            try {
+                let elems = JSON.parse($("#nationwarchestjson").val() as string);
+                if (elems["depmoney"] != undefined) {
+                    GM_setValue("NATION_WARCHEST", elems);
+                    myPrompt.dialog("close");
+                } else {
+                    alert("Invalid input:\n" + elems)
+                }
+            } catch(err) {
+                alert("Invalid input:\n" + err + "\n\n`" + $("#nationwarchestjson").val() + "`")
             }
-        } catch(err) {
-            alert("Invalid input:\n" + err + "\n\n`" + $("#nationwarchestjson").val() + "`")
+            event.preventDefault();
+            // alert("Set nation warchest to:\n" + JSON.stringify(GM_getValue("NATION_WARCHEST"), null, 4));
+        });
+
+        $("#setCurrentResources").click(function() {
+            const rss = getResources();
+            const formattedRss = Object.fromEntries(
+                Object.entries(rss).map(([key, value]) => [`dep${key}`, value])
+            );
+            $("#nationwarchestjson").val(JSON.stringify(formattedRss, null, 4));
+        });
+
+        myPrompt.dialog({
+            width: 'auto',
+            close: function() {
+                myPrompt.remove();
+            }
+        });
+
+        let existingValue = GM_getValue("NATION_WARCHEST");
+        if (existingValue != undefined) {
+            console.log("Set nation warchest to \n" + JSON.stringify(existingValue, null, 4))
+            $("#nationwarchestjson").val(JSON.stringify(existingValue, null, 4));
         }
-        event.preventDefault();
-    });
-
-    myPrompt.dialog({
-        width: 'auto'
-    });
-
-    let existingValue = GM_getValue("NATION_WARCHEST");
-    if (existingValue != undefined) {
-        console.log("Set nation warchest to \n" + JSON.stringify(existingValue, null, 2))
-        $("#nationwarchestjson").val(JSON.stringify(existingValue, null, 2));
+    } else {
+        myPrompt.dialog("open");
     }
 }
 
@@ -68,55 +87,63 @@ function initNationWarchest() {
 }
 
 function showAllianceWarchest() {
-    let myPrompt = $(`<div id="allianceDialog" title="Alliance Warchest (json)">
+    let myPrompt = $("#allianceDialog");
+    if (myPrompt.length === 0) {
+        myPrompt = $(`<div id="allianceDialog" title="Alliance Warchest (json)">
 <p>These are the amounts that will be kept in the alliance bank:</p>
 <br>
 <form id="alliance_wc_form">
   <textarea id="alliancewarchestjson" form="alliance_wc_form" placeholder="Enter code here..." rows="24" cols="50">{
-	"withmoney": "0.00",
-	"withcredits": "0.00",
-	"withfood": "0.00",
-	"withcoal": "0.00",
-	"withoil": "0.00",
-	"withuranium": "0.00",
-	"withlead": "0.00",
-	"withiron": "0.00",
-	"withbauxite": "0.00",
-	"withgasoline": "0.00",
-	"withmunitions": "0.00",
-	"withsteel": "0.00",
-	"withaluminum": "0.00"
+    "withmoney": "0.00",
+    "withcredits": "0.00",
+    "withfood": "0.00",
+    "withcoal": "0.00",
+    "withoil": "0.00",
+    "withuranium": "0.00",
+    "withlead": "0.00",
+    "withiron": "0.00",
+    "withbauxite": "0.00",
+    "withgasoline": "0.00",
+    "withmunitions": "0.00",
+    "withsteel": "0.00",
+    "withaluminum": "0.00"
 }</textarea>
   <br>
   <input type="submit" value="submit">
 </form>
 </div>`);
 
-    $("body").after(myPrompt);
+        $("body").append(myPrompt);
 
-    $("#alliance_wc_form").submit(function( event ) {
-        try {
-            let elems = JSON.parse($("#alliancewarchestjson").val() as string);
-            if (elems["withmoney"] != undefined) {
-                GM_setValue("ALLIANCE_WARCHEST", elems);
-                myPrompt.remove();
-            } else {
-                alert("Invalid input:\n" + elems)
+        $("#alliance_wc_form").submit(function(event) {
+            try {
+                let elems = JSON.parse($("#alliancewarchestjson").val() as string);
+                if (elems["withmoney"] != undefined) {
+                    GM_setValue("ALLIANCE_WARCHEST", elems);
+                    myPrompt.dialog("close");
+                } else {
+                    alert("Invalid input:\n" + elems)
+                }
+            } catch(err) {
+                alert("Invalid input:\n" + err + "\n\n`" + $("#alliancewarchestjson").val() + "`")
             }
-        } catch(err) {
-            alert("Invalid input:\n" + err + "\n\n`" + $("#alliancewarchestjson").val() + "`")
+            event.preventDefault();
+        });
+
+        myPrompt.dialog({
+            width: 'auto',
+            close: function() {
+                myPrompt.remove();
+            }
+        });
+
+        let existingValue = GM_getValue("ALLIANCE_WARCHEST");
+        if (existingValue != undefined) {
+            console.log("Set alliance warchest to \n" + JSON.stringify(existingValue, null, 4))
+            $("#alliancewarchestjson").val(JSON.stringify(existingValue, null, 4));
         }
-        event.preventDefault();
-    });
-
-    myPrompt.dialog({
-        width: 'auto'
-    });
-
-    let existingValue = GM_getValue("ALLIANCE_WARCHEST");
-    if (existingValue != undefined) {
-        console.log("Set alliance warchest to \n" + JSON.stringify(existingValue, null, 2))
-        $("#alliancewarchestjson").val(JSON.stringify(existingValue, null, 2));
+    } else {
+        myPrompt.dialog("open");
     }
 }
 function initAllianceWarchest() {
