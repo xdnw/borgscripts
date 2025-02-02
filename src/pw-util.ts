@@ -120,12 +120,13 @@ export function addOrSubtractResources(resources: { [key in Resources]?: number 
 }
 
 export function getValidAttacks(card: CardInfo): AttackInfo[] {
+    const validAttacks: AttackInfo[] = [];
+    if (card.self.map == 0 || card.other.resistance == 0 || card.self.resistance == 0) return validAttacks;
     const attMap = card.self.map;
     const attacker = card.self;
     const defender = card.other;
 
     const resources = getResources();
-    const validAttacks: AttackInfo[] = [];
     if (attMap >= 3 && attacker.soldier! >= 50) { // ground
         const defGroundStr = groundStrength(defender.soldier!, defender.tank!, true, card.self.status.includes(Status.AIR_SUPERIORITY));
         const ga1 = new GroundAttack({}, false, getOddsArr(attacker.soldier!, defGroundStr), attacker.soldier!, 0, false);
