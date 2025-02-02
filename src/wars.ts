@@ -22,14 +22,17 @@ export function initWarsPage() {
     initMyUnits();
 }
 
-function removeElems() {
+function getFinalBody() {
     const tailwindBodies = document.querySelectorAll('#tailwind-body');
     if (!tailwindBodies) {
-        alert("Tailwind body not found");
-        return;
+        console.log("Tailwind body not found");
+        return document.body;
     }
-    const tailwindBody = tailwindBodies[tailwindBodies.length - 1];
+    return tailwindBodies[tailwindBodies.length - 1];
+}
 
+function removeElems() {
+    const tailwindBody = getFinalBody();
     const tagsToRemove: { [key: string]: number } = { 'DIV': 1, 'P': 2, 'IMG': 1, 'HR': 1 };
     Array.from(tailwindBody.children).forEach(child => {
         const tag = child.tagName as keyof typeof tagsToRemove;
@@ -306,13 +309,19 @@ function test(cards: CardInfo[]) {
 function initMyUnits() {
     const cards: CardInfo[] = parseUnits();
     if (!cards) return;
-
-    for (const card of cards) {
-        setValidAttacks(card);
-    }
+    setAutoAndValidAttacks(cards);
 }
 
-function setValidAttacks(card: CardInfo) {
+function setAutoAndValidAttacks(cards: CardInfo[]) {
+    const allAttacks: [CardInfo, AttackInfo[]][] = [];
+    for (const card of cards) {
+        const attacks = setValidAttacks(cards, card);
+        allAttacks.push([card, attacks]);
+    }
+    addAutoAttack(cards, allAttacks);
+}
+
+function setValidAttacks(cards: CardInfo[], card: CardInfo) {
     const attacks = getValidAttacks(card);
     let attackDiv = document.getElementById("warcard-" + card.id);
     if (!attackDiv) {
@@ -323,12 +332,69 @@ function setValidAttacks(card: CardInfo) {
         attackDiv.innerHTML = ''; // Clear existing content
     }
     for (const attack of attacks) {
-        const btn = createAttackButton(attack, card);
+        const btn = createAttackButton(cards, attack, card);
         attackDiv.appendChild(btn);
+    }
+    return attacks;
+}
+
+function addAutoAttack(cards: CardInfo[], attacks: [CardInfo, AttackInfo[]][] ) {
+    const tailwindBody = getFinalBody();
+    const centerDiv = tailwindBody.querySelector('.text-center');
+    if (!centerDiv) {
+        return;
+    }
+    const firstLink = centerDiv.querySelector("a");
+    if (firstLink) {
+        firstLink.children[0].className = '';
+    }
+
+    let first: [CardInfo, AttackInfo] | null = null;
+    for (const [card, attackList] of attacks) {
+        for (const attack of attackList) {
+            if (attack.requirePrompt) continue;
+            const maxVal = Math.max(...attack.odds);
+            if (maxVal === attack.odds[3]) {
+                first = [card, attack];
+                break;
+            }
+        }
+        if (first) break;
+    }
+
+    if (!first) {
+        const existingBtn = document.getElementById('auto-attack');
+        if (existingBtn) {
+            existingBtn.remove();
+            alert("Auto button removed");
+        }
+    } else {
+        const [card, attack] = first;
+        let autoBtn = document.getElementById('auto-attack') as HTMLButtonElement;
+        if (!autoBtn) {
+            autoBtn = document.createElement('button');
+            autoBtn.classList.add('inline-flex', 'text-xl', 'items-center', 'mr-2', 'text-white', 'hover:text-gray-100', 'active:text-gray-200', 'focus:text-white', 'bg-red-600', 'hover:bg-red-700', 'active:bg-red-800', 'justify-center', 'rounded', 'py-2', 'px-3', 'typically:no-underline');
+            autoBtn.id = 'auto-attack';
+            centerDiv.appendChild(autoBtn);
+        }
+        autoBtn.textContent = `Attack ${card.other.name}: ${attack.toString()}`;
+        autoBtn.onclick = () => executeAttack(cards, attack, autoBtn, card);
+    }
+
+    let infoBtn = document.getElementById('auto-attack-info') as HTMLButtonElement;
+    if (!infoBtn) {
+        infoBtn = document.createElement('button');
+        infoBtn.id = 'auto-attack-info';
+        infoBtn.textContent = 'ℹ️';
+        infoBtn.classList.add('inline-flex', 'text-xl', 'items-center', 'mr-2', 'text-white', 'hover:text-gray-100', 'active:text-gray-200', 'focus:text-white', 'bg-blue-600', 'hover:bg-blue-700', 'active:bg-blue-800', 'justify-center', 'rounded', 'py-2', 'px-2', 'typically:no-underline');
+        infoBtn.onclick = () => {
+            alert('The first available Immense Triumph attack will be added as a button here, if it exists.');
+        };
+        centerDiv.appendChild(infoBtn);
     }
 }
 
-const createAttackButton = (attack: AttackInfo, card: CardInfo) => {
+function createAttackButton(cards: CardInfo[], attack: AttackInfo, card: CardInfo) {
     const btn = document.createElement('button');
     const oddsLabels = ['UF', 'PV', 'MS', 'IT'];
     const oddsColors = ['red', 'orange', 'yellow', 'green'];
@@ -365,16 +431,16 @@ const createAttackButton = (attack: AttackInfo, card: CardInfo) => {
                 attack.toString() + "\n" +
                 successStr);
             if (userConfirmed) {
-                executeAttack(attack, btn, card);
+                executeAttack(cards, attack, btn, card);
             }
         } else {
-            executeAttack(attack, btn, card);
+            executeAttack(cards, attack, btn, card);
         }
     };
     return btn;
 }
 
-function executeAttack(attack: AttackInfo, element: HTMLButtonElement, card: CardInfo) {
+function executeAttack(cards: CardInfo[], attack: AttackInfo, element: HTMLButtonElement, card: CardInfo) {
     const initialContent = element.innerHTML;
     element.innerHTML = "Executing Attack...";
     element.disabled = true
@@ -393,7 +459,7 @@ function executeAttack(attack: AttackInfo, element: HTMLButtonElement, card: Car
                 const resultStr = resultsElem.textContent as string;
                 const details = extractBattleDetailsInferred(resultStr, attack);
                 setCard(card, attack, details);
-                setValidAttacks(card);
+                setAutoAndValidAttacks(cards);
             } else {
                 const errorElem = doc.querySelector('.pw-alert-red');
                 if (errorElem) {
@@ -418,8 +484,7 @@ function executeAttack(attack: AttackInfo, element: HTMLButtonElement, card: Car
 }
 
 function setAlert(message: string, isSuccess: boolean) {
-    let tailwindBody = document.querySelector('#tailwind-body');
-    if (!tailwindBody) tailwindBody = document.body;
+    let tailwindBody = getFinalBody();
     const existingAlert = tailwindBody.querySelector('#alert-message');
     if (existingAlert) {
         tailwindBody.removeChild(existingAlert);
