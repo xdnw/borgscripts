@@ -7,6 +7,7 @@
 // @match       *://*/recaptcha/*
 // @connect     engageub.pythonanywhere.com
 // @connect     engageub1.pythonanywhere.com
+// @downloadURL https://github.com/xdnw/borgscripts/raw/refs/heads/main/dist/locutus.user.js
 // @grant       GM_setValue
 // @grant       GM_getValue
 // @grant       GM_addValueChangeListener
@@ -17,6 +18,7 @@
 // @license     MIT
 // @namespace   http://tampermonkey.net/
 // @resource    jqueryui https://code.jquery.com/ui/1.14.1/themes/base/jquery-ui.css
+// @updateURL   https://github.com/xdnw/borgscripts/raw/refs/heads/main/dist/locutus.user.js
 // ==/UserScript==
 
 /*! For license information please see locutus.js.LICENSE.txt */
