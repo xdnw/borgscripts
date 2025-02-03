@@ -1,4 +1,4 @@
-import {CardInfo} from "./wars";
+import {CardInfo, CardSide} from "./wars";
 import {formatSi} from "./lib";
 
 export function getOdds(attStrength: number, defStrength: number, success: number): number {
@@ -117,6 +117,27 @@ export function addOrSubtractResources(resources: { [key in Resources]?: number 
         }
     }
     return newResources;
+}
+
+export function getMaxGroundStrength(self: CardSide, other: CardSide, resources?: { [key in Resources]?: number }): number {
+    let soldierStr = self.soldier!;
+    let tanks = self.tank!;
+    if (resources) {
+        const perSoldier = attackConsumption({soldier: 1});
+        const maxSoldiers = Math.min(self.soldier!, attacksForConsumption(perSoldier, resources));
+        soldierStr = Math.max(groundStrength(maxSoldiers, 0, true, false), soldierStr);
+        if (maxSoldiers == self.soldier!) {
+            const soldierConsumption = attackConsumption({soldier: maxSoldiers});
+            const remainingRss = addOrSubtractResources(resources, soldierConsumption, true);
+            const perTank = attackConsumption({tank: 1});
+            tanks = Math.min(self.tank!, attacksForConsumption(perTank, remainingRss));
+        } else {
+            tanks = 0;
+        }
+    } else {
+        soldierStr = groundStrength(soldierStr, 0, true, false);
+    }
+    return (tanks > 0 ? groundStrength(0, tanks, true, other.status.includes(Status.AIR_SUPERIORITY)) : 0) + soldierStr;
 }
 
 export function getValidAttacks(card: CardInfo): AttackInfo[] {
@@ -242,7 +263,11 @@ export class GroundAttack extends AttackInfo {
     }
 
     toString(): string {
-        return `${formatSi(this.attSoldiers)} 💂, ${formatSi(this.attTanks)} ⚙, ${this.soldiersUseMunitions ? "Armed" : "Unarmed"}`;
+        let msg = 'Ground';
+        if (this.soldiersUseMunitions) msg += " (armed)";
+        else msg += " (unarmed)";
+        if (this.attTanks) msg += ' (no tanks)';
+        return msg;
     }
 }
 
@@ -287,7 +312,11 @@ export class Airstrike extends AttackInfo {
     }
 
     toString(): string {
-        return `${formatSi(this.attAircraft)} ✈ dogfight`;
+        const enumKey = Object.keys(AirstrikeTarget).find(key => AirstrikeTarget[key as keyof typeof AirstrikeTarget] === this.type);
+        if (enumKey) {
+            return enumKey.replace('TARGET', 'AIRSTRIKE').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, char => char.toUpperCase());
+        }
+        return 'Airstrike';
     }
 }
 
@@ -300,7 +329,7 @@ export class NavalAttack extends AttackInfo {
     }
 
     toString(): string {
-        return `${formatSi(this.attShips)} 🚢`;
+        return `Naval`;
     }
 }
 

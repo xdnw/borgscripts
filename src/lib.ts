@@ -234,3 +234,9 @@ export function VR(height: string = '2.5em') {
     verticalBar.style.height = height;
     return verticalBar;
 }
+
+export function HR() {
+    const horizontalBar = document.createElement('hr');
+    horizontalBar.classList.add('my-2', 'border-0', 'border-t-[1px]', 'border-solid', 'border-t-zinc-200');
+    return horizontalBar;
+}

@@ -12,6 +12,8 @@ active\\:bg-orange-800:active { background-color: #ef6c00; --tw-bg-opacity: 1; }
 .tailwind .bg-green-600 { background-color: #43a047; --tw-bg-opacity: 1; }
 .hover\\:bg-green-700:hover { background-color: #388e3c; --tw-bg-opacity: 1; }
 .active\\:bg-green-800:active { background-color: #2e7d32; --tw-bg-opacity: 1; }
+.hover-opacity:hover { opacity: 0.9; }
+.active-opacity:active { opacity: 0.8; }
 ` );
 
 }

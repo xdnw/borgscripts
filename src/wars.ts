@@ -3,8 +3,8 @@ import {
     AirstrikeTarget,
     AttackInfo,
     BattleDetails,
-    extractBattleDetailsInferred,
-    getOdds,
+    extractBattleDetailsInferred, getMaxGroundStrength,
+    getOdds, getOddsArr,
     getResources,
     getStatusHtml,
     getValidAttacks,
@@ -19,7 +19,7 @@ import {
     createElement,
     createElementText,
     formatSi,
-    get,
+    get, HR,
     post,
     replaceTextWithoutRemovingChildren,
     span,
@@ -61,7 +61,7 @@ export type CardInfo = {
     id: number;
 }
 
-type CardSide = MilitaryUnits & {
+export type CardSide = MilitaryUnits & {
     name: string;
     nation_id: number;
     alliance_id: number;
@@ -328,9 +328,6 @@ function setAutoAndValidAttacks(cards: CardInfo[]) {
     for (const card of cards) {
         const attacks = setValidAttacks(cards, card);
         allAttacks.push([card, attacks]);
-        const pre = document.createElement('pre');
-        pre.textContent = JSON.stringify(card, undefined, 2);
-        card.element.appendChild(pre);
     }
     addAutoAttack(cards, allAttacks);
 }
@@ -345,11 +342,94 @@ function setValidAttacks(cards: CardInfo[], card: CardInfo) {
     } else {
         attackDiv.innerHTML = ''; // Clear existing content
     }
+    if (attacks) {
+        attackDiv.appendChild(HR());
+        const strong = document.createElement('strong');
+        strong.textContent = 'Attacks';
+        attackDiv.appendChild(strong);
+    }
     for (const attack of attacks) {
         const btn = createAttackButton(cards, attack, card);
         attackDiv.appendChild(btn);
     }
+
+    { // Enemy odds
+        let enemyOdds = card.element.querySelector('.pw-card-odds');
+        if (!enemyOdds) {
+            enemyOdds = document.createElement('div');
+            enemyOdds.classList.add('pw-card-odds');
+            card.element.appendChild(enemyOdds);
+        }
+        // clear
+        enemyOdds.innerHTML = '';
+        enemyOdds.appendChild(HR());
+        const strong = document.createElement('strong');
+        strong.textContent = 'Enemy Odds';
+        enemyOdds.appendChild(strong);
+        const defGroundStr = getMaxGroundStrength(card.other, card.self, undefined);
+        const selfGroundStr = getMaxGroundStrength(card.self, card.other, getResources());
+        enemyOdds.appendChild(OddsComponent({ title: 'Ground', odds: getOddsArr(defGroundStr, selfGroundStr) }));
+        enemyOdds.appendChild(OddsComponent({ title: 'Air', odds: getOddsArr(card.other.aircraft!, card.self.aircraft!) }));
+        enemyOdds.appendChild(OddsComponent({ title: 'Naval', odds: getOddsArr(card.other.ship!, card.self.ship!) }));
+    }
+
     return attacks;
+}
+
+function OddsComponent({ title, odds, label, text }: { title: string, odds: number[], label?: boolean, text?: boolean }) {
+    const container = document.createElement('div');
+
+    if (label === undefined || label) {
+        const header = document.createElement('div');
+        header.style.marginTop = '2px';
+        header.textContent = `Odds ${title}`;
+        header.classList.add('text-xs', 'font-bold');
+        container.appendChild(header);
+    }
+
+    const flexDiv = document.createElement('div');
+    flexDiv.className = 'flex w-full h-4 text-xs';
+    container.appendChild(flexDiv);
+
+    const calculatedOdds = [0, 1, 2, 3].map(success => ({
+        success,
+        odds: odds[success] * 100
+    })).filter(({ odds }) => odds > 0);
+
+    if (calculatedOdds.length === 0) {
+        flexDiv.appendChild(OddsSuccess({ odds: 100, success: 0, text: text }) as HTMLElement);
+    } else {
+        calculatedOdds.forEach(({ success, odds }) => {
+            if (odds > 0) flexDiv.appendChild(OddsSuccess({ odds, success, text }));
+        });
+    }
+
+    return container;
+}
+
+function OddsSuccess({ odds, success, text }: { odds: number, success: number, text?: boolean }) {
+    const successClasses = [
+        'bg-red-600',
+        'bg-orange-600',
+        'bg-yellow-600',
+        'bg-green-600'
+    ];
+
+    const div = document.createElement('div');
+    div.className = `flex-grow ${successClasses[success]}`;
+    div.style.width = `${odds}%`;
+    div.setAttribute('aria-valuenow', odds.toString());
+    div.setAttribute('aria-valuemin', '0');
+    div.setAttribute('aria-valuemax', '100');
+
+    if (text === undefined || text) {
+        const innerDiv = document.createElement('div');
+        innerDiv.className = 'whitespace-nowrap break-keep overflow-hidden';
+        innerDiv.textContent = `${Math.round(odds)}% ${['Utter Failure', 'Pyrrhic Victory', 'Moderate Success', 'Immense Triumph'][success]}`;
+        div.appendChild(innerDiv);
+    }
+
+    return div;
 }
 
 function addAutoAttack(cards: CardInfo[], attacks: [CardInfo, AttackInfo[]][] ) {
@@ -410,32 +490,48 @@ function addAutoAttack(cards: CardInfo[], attacks: [CardInfo, AttackInfo[]][] ) 
 }
 
 function createAttackButton(cards: CardInfo[], attack: AttackInfo, card: CardInfo) {
-    const btn = document.createElement('button');
-    const oddsLabels = ['UF', 'PV', 'MS', 'IT'];
-    const oddsColors = ['red', 'orange', 'yellow', 'green'];
-    const remapEndpoint = {
+    const remapEndpoint: { [key: string]: string } = {
         groundbattle: 'ground',
         navalbattle: 'naval',
         airstrike: 'air',
     }
+    const oddsLabels = ['UF', 'PV', 'MS', 'IT'];
+    const oddsColors = ['red', 'orange', 'yellow', 'green'];
 
-    let highestOdds = 0;
-    let buttonBg = 'green';
-    btn.textContent = attack.toString();
+    const btnChild = OddsComponent({ title: '', odds: attack.odds, label: false, text: false });
+    const btn = document.createElement('button');
+    const spanOverlay = document.createElement('span');
+    spanOverlay.appendChild(span(attack.toString(), undefined, false, false));
+
+    btn.classList.add('hover-opacity', 'active-opacity', 'rounded', 'w-full')
+    btn.style.overflow = 'hidden';
+
+    btn.style.position = 'relative';
+    spanOverlay.style.position = 'absolute';
+    spanOverlay.style.top = '0';
+    spanOverlay.style.left = '0';
+    spanOverlay.style.width = '100%';
+    spanOverlay.style.height = '100%';
+    spanOverlay.style.display = 'flex';
+    spanOverlay.style.alignItems = 'center';
+    spanOverlay.style.justifyContent = 'center';
+
+    btn.appendChild(spanOverlay);
+    btn.appendChild(btnChild);
+    // btn.classList.add('inline-flex', 'text-xs', 'items-center', 'gap-0.5', 'justify-center', 'rounded', 'px-2', 'w-full'); // , `bg-${buttonBg}-600`, `hover:bg-${buttonBg}-700`, `active:bg-${buttonBg}-800`
+
     attack.odds.forEach((odd, index) => {
         if (odd >= 0.01) {
-            btn.appendChild(span(`${(odd * 100).toFixed(0)}% ${oddsLabels[index]}`));
-            if (odd > attack.odds[highestOdds]) {
-                highestOdds = index;
-            }
+            const myspan = span(`${(odd * 100).toFixed(0)}% ${oddsLabels[index]}`);
+            myspan.style.marginLeft = '4px';
+            spanOverlay.appendChild(myspan);
         }
     });
-    buttonBg = oddsColors[highestOdds];
+
     if (attack.low_rss) {
         btn.appendChild(span("low", ["https://politicsandwar.com/img/resources/munitions.png", "https://politicsandwar.com/img/resources/gasoline.png"]));
     }
 
-    btn.classList.add('inline-flex', 'text-xs', 'items-center', 'gap-0.5', `bg-${buttonBg}-600`, `hover:bg-${buttonBg}-700`, `active:bg-${buttonBg}-800`, 'justify-center', 'rounded', 'px-2', 'w-full');
     btn.onclick = () => {
         if (attack.requirePrompt) {
             const successStr = attack.odds
@@ -575,9 +671,10 @@ function addRebuyButtons() {
 }
 
 function rebuy(units: boolean[]) {
-    alert("Rebuying units " + JSON.stringify(units));
+    / / + JSON.stringify(units)
+    alert("Rebuying units is not yet implemented");
 }
 
 function sellNonSoldiers() {
-    alert("Selling non-soldier units");
+    alert("Selling non-soldier units is not yet implemented");
 }
