@@ -14,12 +14,23 @@ import {
     NavalAttack,
     Status
 } from "./pw-util";
-import {createElement, createElementText, formatSi, get, post, replaceTextWithoutRemovingChildren, span} from "./lib";
+import {
+    addCheckboxWithGMVariable,
+    createElement,
+    createElementText,
+    formatSi,
+    get,
+    post,
+    replaceTextWithoutRemovingChildren,
+    span,
+    VR
+} from "./lib";
 
 export function initWarsPage() {
     const url = "/index.php?id=15&amp;keyword=1725.26&amp;cat=war_range&amp;ob=score&amp;od=ASC&amp;maximum=15&amp;minimum=0&amp;search=Go&amp;beige=true&amp;vmode=false&amp;openslots=true";
     removeElems();
     initMyUnits();
+    addRebuyButtons();
 }
 
 function getFinalBody() {
@@ -136,12 +147,12 @@ function parseCardSide(card: Element, side: boolean): CardSide {
     { // units
         const unitDiv = sideElements[12 + statusO].children[o];
         const unitIcons = unitDiv.querySelectorAll('.pw-tooltip-content');
-        soldier = parseInt(unitIcons[0].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
-        aircraft = parseInt(unitIcons[1].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
-        missile = parseInt(unitIcons[2].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
-        tank = parseInt(unitIcons[3].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
-        ship = parseInt(unitIcons[4].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
-        nuke = parseInt(unitIcons[5].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        soldier = parseInt(unitIcons[side ? 4 : 0].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        aircraft = parseInt(unitIcons[side ? 5 : 1].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        missile = parseInt(unitIcons[side ? 6 : 2].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        tank = parseInt(unitIcons[side ? 1 : 3].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        ship = parseInt(unitIcons[side ? 2 : 4].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        nuke = parseInt(unitIcons[side ? 3 : 5].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
     }
 
     return { name, nation_id, alliance_id, alliance_name, soldier, tank, aircraft, ship, missile, nuke, resistance, map, status };
@@ -317,6 +328,9 @@ function setAutoAndValidAttacks(cards: CardInfo[]) {
     for (const card of cards) {
         const attacks = setValidAttacks(cards, card);
         allAttacks.push([card, attacks]);
+        const pre = document.createElement('pre');
+        pre.textContent = JSON.stringify(card, undefined, 2);
+        card.element.appendChild(pre);
     }
     addAutoAttack(cards, allAttacks);
 }
@@ -372,6 +386,7 @@ function addAutoAttack(cards: CardInfo[], attacks: [CardInfo, AttackInfo[]][] ) 
         const [card, attack] = first;
         let autoBtn = document.getElementById('auto-attack') as HTMLButtonElement;
         if (!autoBtn) {
+            centerDiv.appendChild(VR());
             autoBtn = document.createElement('button');
             autoBtn.classList.add('inline-flex', 'text-xl', 'items-center', 'mr-2', 'text-white', 'hover:text-gray-100', 'active:text-gray-200', 'focus:text-white', 'bg-red-600', 'hover:bg-red-700', 'active:bg-red-800', 'justify-center', 'rounded', 'py-2', 'px-3', 'typically:no-underline');
             autoBtn.id = 'auto-attack';
@@ -504,4 +519,65 @@ function updateResources(doc: Document) {
     const newInfoBar = doc.querySelector('.informationbar');
     if (!newInfoBar) return;
     infoBar.replaceWith(newInfoBar);
+}
+
+function addRebuyButtons() {
+    let tailwindBody = getFinalBody();
+    let rebuyDiv: HTMLElement = document.querySelector('#rebuy-div') as HTMLElement;
+    if (!rebuyDiv) {
+        rebuyDiv = document.createElement('div');
+        rebuyDiv.id = 'rebuy-div';
+        rebuyDiv.classList.add('flex', 'gap-0.5', 'mt-2', 'w-full');
+        tailwindBody.insertBefore(rebuyDiv, tailwindBody.children[2]);
+    }
+    const checkBoxes: HTMLInputElement[] = [];
+    checkBoxes.push(addCheckboxWithGMVariable('rebuy_soldier', 'soldiers', (checked) => {}, (checked) => {}, rebuyDiv, false));
+    checkBoxes.push(addCheckboxWithGMVariable('rebuy_tank', 'tanks', (checked) => {}, (checked) => {}, rebuyDiv, false));
+    checkBoxes.push(addCheckboxWithGMVariable('rebuy_aircraft', 'aircraft', (checked) => {}, (checked) => {}, rebuyDiv, false));
+    checkBoxes.push(addCheckboxWithGMVariable('rebuy_ship', 'ships', (checked) => {}, (checked) => {}, rebuyDiv, false));
+
+    const button = document.createElement('button');
+    button.textContent = 'Rebuy';
+    button.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
+    button.addEventListener('click', () => {
+        const states = checkBoxes.map(checkbox => checkbox.checked);
+        rebuy(states);
+    });
+    rebuyDiv.appendChild(button);
+
+    rebuyDiv.appendChild(VR());
+
+    // Add sell non soldier
+    const sellButton = document.createElement('button');
+    sellButton.textContent = 'Sell All Non-Soldiers';
+    sellButton.classList.add(`bg-red-600`, `hover:bg-red-700`, `active:bg-red-800`, 'rounded', 'px-2', 'text-white', 'strong');
+    sellButton.addEventListener('click', () => {
+        if (confirm("Are you sure you want to sell all non-soldier units?")) {
+            sellNonSoldiers();
+        }
+    });
+    rebuyDiv.appendChild(sellButton);
+
+    // Add bank deposit link
+    const sideBar = document.querySelector('#leftcolumn') as HTMLElement;
+    const bankLink = sideBar.querySelector('a[href*="alliance/id="]') as HTMLAnchorElement;
+    if (bankLink) {
+        rebuyDiv.appendChild(VR());
+
+        const bankButton = document.createElement('a');
+        bankButton.textContent = 'Deposit Page';
+        bankButton.href = bankLink.href + '&display=bank#deposit';
+        bankButton.classList.add(`bg-green-600`, `hover:bg-green-700`, `active:bg-green-800`, 'rounded', 'px-2', 'text-white', 'strong', 'items-center', 'justify-center', 'flex');
+        rebuyDiv.appendChild(bankButton);
+    }
+
+
+}
+
+function rebuy(units: boolean[]) {
+    alert("Rebuying units " + JSON.stringify(units));
+}
+
+function sellNonSoldiers() {
+    alert("Selling non-soldier units");
 }

@@ -28,7 +28,7 @@ try {
 
 // War page
 // *politicsandwar.com/nation/war/
-    if (urlMatches(/politicsandwar\.com\/nation\/war/)) {
+    if (urlMatches(/politicsandwar\.com\/nation\/war/) && !urlMatches(/politicsandwar\.com\/nation\/war\/declare/)) {
         initWarsPage();
     }
 } catch (e) {

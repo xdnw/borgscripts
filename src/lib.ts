@@ -56,19 +56,18 @@ export function addCheckboxWithGMVariable(
     onInitialValue: (checked: boolean) => void,
     parentOrSibling?: HTMLElement,
     asSibling?: boolean
-) {
+): HTMLInputElement {
     const initialValue = GM_getValue(gmVariable, false);
     // Run the function based on the initial value
     onInitialValue(initialValue);
 
     // Create the container div
-    const container = document.createElement('div');
-    container.style.display = 'flex';
+    const container = document.createElement('span');
     container.style.alignItems = 'center';
     container.style.cursor = 'pointer';
     container.style.border = '1px solid #ccc';
     container.style.borderRadius = '3px';
-    container.style.padding = '4px';
+    container.style.padding = '6px';
     container.style.backgroundColor = GM_getValue(gmVariable, false) ? 'green' : 'red';
 
     // Create the status span
@@ -87,10 +86,10 @@ export function addCheckboxWithGMVariable(
     // Create the label
     const label = document.createElement('label');
     label.htmlFor = checkbox.id;
-    label.textContent = `${labelText} ${checkbox.checked ? 'Enabled' : 'Disabled'}`;
+    label.textContent = `${labelText}`; //  ${checkbox.checked ? 'Enabled' : 'Disabled'}
     label.style.flexGrow = '1';
     label.style.backgroundColor = '#f8f9fa'; // Bootstrap bg-light
-    label.style.padding = '4px';
+    label.style.padding = '2px';
     label.style.margin = '0';
 
     // Append the status span, checkbox, and label to the container
@@ -115,9 +114,11 @@ export function addCheckboxWithGMVariable(
         GM_setValue(gmVariable, checkbox.checked);
         container.style.backgroundColor = checkbox.checked ? 'green' : 'red';
         statusSpan.textContent = checkbox.checked ? 'True' : 'False';
-        label.textContent = `${labelText} ${checkbox.checked ? 'Enabled' : 'Disabled'}`;
+        label.textContent = `${labelText}`; //  ${checkbox.checked ? 'Enabled' : 'Disabled'}
         onToggle(checkbox.checked);
     });
+
+    return checkbox as HTMLInputElement;
 }
 
 const si = [
@@ -225,4 +226,11 @@ export function replaceTextWithoutRemovingChildren(element: HTMLElement, newText
         const newTextNode = document.createTextNode(newText);
         element.insertBefore(newTextNode, element.firstChild);
     }
+}
+
+export function VR(height: string = '2.5em') {
+    const verticalBar = document.createElement('span');
+    verticalBar.classList.add('border-l', 'border-gray-500', 'mx-2');
+    verticalBar.style.height = height;
+    return verticalBar;
 }
