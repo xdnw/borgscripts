@@ -52,6 +52,8 @@ function removeElems() {
             tagsToRemove[tag]--;
         }
     });
+    const header = document.getElementById('header');
+    if (header) header.innerHTML = '';
 }
 
 export type CardInfo = {
@@ -460,7 +462,6 @@ function addAutoAttack(cards: CardInfo[], attacks: [CardInfo, AttackInfo[]][] ) 
         const existingBtn = document.getElementById('auto-attack');
         if (existingBtn) {
             existingBtn.remove();
-            alert("Auto button removed");
         }
     } else {
         const [card, attack] = first;
@@ -646,7 +647,7 @@ function addRebuyButtons() {
     // Add sell non soldier
     const sellButton = document.createElement('button');
     sellButton.textContent = 'Sell All Non-Soldiers';
-    sellButton.classList.add(`bg-red-600`, `hover:bg-red-700`, `active:bg-red-800`, 'rounded', 'px-2', 'text-white', 'strong');
+    sellButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
     sellButton.addEventListener('click', () => {
         if (confirm("Are you sure you want to sell all non-soldier units?")) {
             sellNonSoldiers();
@@ -663,11 +664,18 @@ function addRebuyButtons() {
         const bankButton = document.createElement('a');
         bankButton.textContent = 'Deposit Page';
         bankButton.href = bankLink.href + '&display=bank#deposit';
-        bankButton.classList.add(`bg-green-600`, `hover:bg-green-700`, `active:bg-green-800`, 'rounded', 'px-2', 'text-white', 'strong', 'items-center', 'justify-center', 'flex');
+        bankButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong', 'items-center', 'justify-center', 'flex');
         rebuyDiv.appendChild(bankButton);
     }
 
-
+    rebuyDiv.appendChild(VR());
+    const fetchProjectsButton = document.createElement('button');
+    fetchProjectsButton.textContent = 'Fetch ID/VDS';
+    fetchProjectsButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
+    fetchProjectsButton.addEventListener('click', () => {
+        fetchProjects();
+    });
+    rebuyDiv.appendChild(fetchProjectsButton);
 }
 
 function rebuy(units: boolean[]) {
@@ -677,4 +685,8 @@ function rebuy(units: boolean[]) {
 
 function sellNonSoldiers() {
     alert("Selling non-soldier units is not yet implemented");
+}
+
+function fetchProjects() {
+    alert("Fetching ID/VDS is not yet implemented");
 }
