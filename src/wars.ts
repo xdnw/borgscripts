@@ -147,12 +147,12 @@ function parseCardSide(card: Element, side: boolean): CardSide {
     { // units
         const unitDiv = sideElements[12 + statusO].children[o];
         const unitIcons = unitDiv.querySelectorAll('.pw-tooltip-content');
-        soldier = parseInt(unitIcons[side ? 4 : 0].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
-        aircraft = parseInt(unitIcons[side ? 5 : 1].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
-        missile = parseInt(unitIcons[side ? 6 : 2].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
-        tank = parseInt(unitIcons[side ? 1 : 3].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
-        ship = parseInt(unitIcons[side ? 2 : 4].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
-        nuke = parseInt(unitIcons[side ? 3 : 5].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        soldier = parseInt(unitIcons[side ? 3 : 0].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        aircraft = parseInt(unitIcons[side ? 4 : 1].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        missile = parseInt(unitIcons[side ? 5 : 2].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        tank = parseInt(unitIcons[side ? 0 : 3].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        ship = parseInt(unitIcons[side ? 1 : 4].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
+        nuke = parseInt(unitIcons[side ? 2 : 5].textContent!.trim().split(' ')[0].trim().replace(/,/g, ''));
     }
 
     return { name, nation_id, alliance_id, alliance_name, soldier, tank, aircraft, ship, missile, nuke, resistance, map, status };
