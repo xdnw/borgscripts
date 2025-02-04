@@ -225,14 +225,20 @@ export function captcha() {
         true
     );
 
-
     if (!isPWPage) return;
+
     const form = document.querySelector('form');
     if (!form) return;
     const buttons = form.querySelectorAll('button');
-    const lastButton = buttons[buttons.length - 1] as HTMLButtonElement;
-    if (!lastButton) return;
+    let lastButton = buttons[buttons.length - 1] as HTMLElement;
+    const isHumanPage = urlMatches(/politicsandwar\.com\/human/);
 
+    if (!lastButton) {
+        if (!isHumanPage) return;
+        lastButton = form.querySelector('input[type="submit"]') as HTMLElement;
+    }
+
+    if (!isHumanPage)
     { // Auto url
         const container = document.createElement('div');
         container.style.padding = '4px';
@@ -253,14 +259,13 @@ export function captcha() {
 
         container.appendChild(copyButton);
         lastButton.insertAdjacentElement('beforebegin', container);
-
-        const isAutoDeclare = new URLSearchParams(window.location.search).get('auto');
-        if (isAutoDeclare) {
-            GM_addValueChangeListener('captchaSolved', (key, oldValue, newValue, remote) => {
-                if (newValue) {
-                    lastButton.click();
-                }
-            });
-        }
+    }
+    const isAutoDeclare = new URLSearchParams(window.location.search).get('auto') || isHumanPage;
+    if (isAutoDeclare) {
+        GM_addValueChangeListener('captchaSolved', (key, oldValue, newValue, remote) => {
+            if (newValue) {
+                lastButton.click();
+            }
+        });
     }
 }
