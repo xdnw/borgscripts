@@ -240,3 +240,21 @@ export function HR() {
     horizontalBar.classList.add('my-2', 'border-0', 'border-t-[1px]', 'border-solid', 'border-t-zinc-200');
     return horizontalBar;
 }
+
+export function delay(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export async function handleButtonClick<T>(button: HTMLButtonElement, action: () => Promise<T>, callback: (result: T) => void) {
+    const originalHTML = button.innerHTML;
+    replaceTextWithoutRemovingChildren(button, 'Loading…');
+    button.disabled = true;
+
+    try {
+        const result = await action();
+        callback(result);
+    } finally {
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+    }
+}

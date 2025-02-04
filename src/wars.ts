@@ -12,25 +12,25 @@ import {
     groundStrength,
     MilitaryUnits,
     NavalAttack,
-    Status
+    Status, UNIT_PURCHASES, UnitPurchaseFormInfo
 } from "./pw-util";
 import {
     addCheckboxWithGMVariable,
     createElement,
-    createElementText,
+    createElementText, delay,
     formatSi,
     get, HR,
     post,
     replaceTextWithoutRemovingChildren,
     span,
-    VR
+    VR,
+    handleButtonClick
 } from "./lib";
 
 export function initWarsPage() {
     const url = "/index.php?id=15&amp;keyword=1725.26&amp;cat=war_range&amp;ob=score&amp;od=ASC&amp;maximum=15&amp;minimum=0&amp;search=Go&amp;beige=true&amp;vmode=false&amp;openslots=true";
     removeElems();
     initMyUnits();
-    addRebuyButtons();
 }
 
 function getFinalBody() {
@@ -332,6 +332,7 @@ function setAutoAndValidAttacks(cards: CardInfo[]) {
         allAttacks.push([card, attacks]);
     }
     addAutoAttack(cards, allAttacks);
+    addRebuyButtons(cards);
 }
 
 function setValidAttacks(cards: CardInfo[], card: CardInfo) {
@@ -553,45 +554,43 @@ function createAttackButton(cards: CardInfo[], attack: AttackInfo, card: CardInf
 }
 
 function executeAttack(cards: CardInfo[], attack: AttackInfo, element: HTMLButtonElement, card: CardInfo) {
-    const initialContent = element.innerHTML;
-    element.innerHTML = "Executing Attack...";
-    element.disabled = true
+    const lastClickTime = GM_getValue('lastClickTime', 0);
+    const currentTime = Date.now();
+    const timeSinceLastClick = currentTime - lastClickTime;
+    if (timeSinceLastClick < 2000) {
+        return delay(2000 - timeSinceLastClick).then(() => {
+            executeAttack(cards, attack, element, card);
+        });
+    }
+    GM_setValue('lastClickTime', currentTime);
 
-    const url = window.location.origin + "/nation/war/" + attack.endpoint + "/war=" + card.id;
-    get(url).then(doc => {
+    return handleButtonClick(element, async () => {
+        const url = window.location.origin + "/nation/war/" + attack.endpoint + "/war=" + card.id;
+        const doc = await get(url);
         const token = (doc.querySelector('[name=token]') as HTMLInputElement).value;
         const data = attack.postData();
         data['token'] = token;
         data['attack'] = '';
         const urlData = new URLSearchParams(Object.entries(data));
-        post(url, urlData).then(doc => {
-            const resultsElem = doc.querySelector('#results');
-            if (resultsElem) {
-                setAlert(resultsElem.innerHTML, true);
-                const resultStr = resultsElem.textContent as string;
-                const details = extractBattleDetailsInferred(resultStr, attack);
-                setCard(card, attack, details);
-                setAutoAndValidAttacks(cards);
+        return post(url, urlData);
+    }, (doc) => {
+        const resultsElem = doc.querySelector('#results');
+        if (resultsElem) {
+            setAlert(resultsElem.innerHTML, true);
+            const resultStr = resultsElem.textContent as string;
+            const details = extractBattleDetailsInferred(resultStr, attack);
+            setCard(card, attack, details);
+            setAutoAndValidAttacks(cards);
+        } else {
+            const errorElem = doc.querySelector('.pw-alert-red');
+            if (errorElem) {
+                setAlert(errorElem.innerHTML, false);
             } else {
-                const errorElem = doc.querySelector('.pw-alert-red');
-                if (errorElem) {
-                    setAlert(errorElem.innerHTML, false);
-                } else {
-                    setAlert("No results element found", false);
-                    console.log(doc.body.innerHTML);
-                }
+                setAlert("No results element found", false);
+                console.log(doc.body.innerHTML);
             }
-            updateResources(doc);
-        }).catch(error => {
-            console.error("Post request failed:", error);
-        }).finally(() => {
-            element.innerHTML = initialContent;
-            element.disabled = false;
-        });
-    }).catch(error => {
-        console.error("Get request failed:", error);
-        element.innerHTML = initialContent;
-        element.disabled = false;
+        }
+        updateResources(doc);
     });
 }
 
@@ -606,7 +605,8 @@ function setAlert(message: string, isSuccess: boolean) {
     const alertColor = isSuccess ? 'pw-alert-green' : 'pw-alert-red';
     alertDiv.classList.add('p-4', 'm-2', 'strong', 'bg-red-300', 'pw-alert', alertColor);
     alertDiv.innerHTML = message;
-    tailwindBody.insertBefore(alertDiv, tailwindBody.firstChild);
+    const centerDiv = tailwindBody.querySelector('.text-center') as HTMLElement;
+    tailwindBody.insertBefore(alertDiv, centerDiv.nextSibling);
     window.scrollTo({ top: 0 });
 }
 
@@ -618,73 +618,144 @@ function updateResources(doc: Document) {
     infoBar.replaceWith(newInfoBar);
 }
 
-function addRebuyButtons() {
+function addRebuyButtons(cards: CardInfo[]) {
     let tailwindBody = getFinalBody();
     let rebuyDiv: HTMLElement = document.querySelector('#rebuy-div') as HTMLElement;
+
+    let rebuyButton = document.querySelector('#rebuy-button') as HTMLButtonElement;
+    let sellButton = document.querySelector('#sell-button') as HTMLButtonElement;
+    let fetchProjectsButton = document.querySelector('#projects-button') as HTMLButtonElement;
+
     if (!rebuyDiv) {
         rebuyDiv = document.createElement('div');
         rebuyDiv.id = 'rebuy-div';
         rebuyDiv.classList.add('flex', 'gap-0.5', 'mt-2', 'w-full');
         tailwindBody.insertBefore(rebuyDiv, tailwindBody.children[2]);
-    }
-    const checkBoxes: HTMLInputElement[] = [];
-    checkBoxes.push(addCheckboxWithGMVariable('rebuy_soldier', 'soldiers', (checked) => {}, (checked) => {}, rebuyDiv, false));
-    checkBoxes.push(addCheckboxWithGMVariable('rebuy_tank', 'tanks', (checked) => {}, (checked) => {}, rebuyDiv, false));
-    checkBoxes.push(addCheckboxWithGMVariable('rebuy_aircraft', 'aircraft', (checked) => {}, (checked) => {}, rebuyDiv, false));
-    checkBoxes.push(addCheckboxWithGMVariable('rebuy_ship', 'ships', (checked) => {}, (checked) => {}, rebuyDiv, false));
 
-    const button = document.createElement('button');
-    button.textContent = 'Rebuy';
-    button.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
-    button.addEventListener('click', () => {
-        const states = checkBoxes.map(checkbox => checkbox.checked);
-        rebuy(states);
-    });
-    rebuyDiv.appendChild(button);
+        addCheckboxWithGMVariable('rebuy_soldier', 'soldiers', (checked) => {}, (checked) => {}, rebuyDiv, false);
+        addCheckboxWithGMVariable('rebuy_tank', 'tanks', (checked) => {}, (checked) => {}, rebuyDiv, false);
+        addCheckboxWithGMVariable('rebuy_aircraft', 'aircraft', (checked) => {}, (checked) => {}, rebuyDiv, false);
+        addCheckboxWithGMVariable('rebuy_ship', 'ships', (checked) => {}, (checked) => {}, rebuyDiv, false);
 
-    rebuyDiv.appendChild(VR());
+        rebuyButton = document.createElement('button');
+        rebuyButton.textContent = 'Rebuy';
+        rebuyButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
+        rebuyDiv.appendChild(rebuyButton);
 
-    // Add sell non soldier
-    const sellButton = document.createElement('button');
-    sellButton.textContent = 'Sell All Non-Soldiers';
-    sellButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
-    sellButton.addEventListener('click', () => {
-        if (confirm("Are you sure you want to sell all non-soldier units?")) {
-            sellNonSoldiers();
-        }
-    });
-    rebuyDiv.appendChild(sellButton);
-
-    // Add bank deposit link
-    const sideBar = document.querySelector('#leftcolumn') as HTMLElement;
-    const bankLink = sideBar.querySelector('a[href*="alliance/id="]') as HTMLAnchorElement;
-    if (bankLink) {
         rebuyDiv.appendChild(VR());
 
-        const bankButton = document.createElement('a');
-        bankButton.textContent = 'Deposit Page';
-        bankButton.href = bankLink.href + '&display=bank#deposit';
-        bankButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong', 'items-center', 'justify-center', 'flex');
-        rebuyDiv.appendChild(bankButton);
+        // Add sell non soldier
+        sellButton = document.createElement('button');
+        sellButton.textContent = 'Sell All Non-Soldiers';
+        sellButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
+        rebuyDiv.appendChild(sellButton);
+
+        // Add bank deposit link
+        const sideBar = document.querySelector('#leftcolumn') as HTMLElement;
+        const bankLink = sideBar.querySelector('a[href*="alliance/id="]') as HTMLAnchorElement;
+        if (bankLink) {
+            rebuyDiv.appendChild(VR());
+
+            const bankButton = document.createElement('a');
+            bankButton.textContent = 'Deposit Page';
+            bankButton.href = bankLink.href + '&display=bank#deposit';
+            bankButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong', 'items-center', 'justify-center', 'flex');
+            rebuyDiv.appendChild(bankButton);
+        }
+
+        rebuyDiv.appendChild(VR());
+        fetchProjectsButton = document.createElement('button');
+        fetchProjectsButton.textContent = 'Fetch ID/VDS';
+        fetchProjectsButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
+        rebuyDiv.appendChild(fetchProjectsButton);
     }
 
-    rebuyDiv.appendChild(VR());
-    const fetchProjectsButton = document.createElement('button');
-    fetchProjectsButton.textContent = 'Fetch ID/VDS';
-    fetchProjectsButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
+    rebuyButton.addEventListener('click', () => {
+        const states = [
+            GM_getValue('rebuy_soldier', false),
+            GM_getValue('rebuy_tank', false),
+            GM_getValue('rebuy_aircraft', false),
+            GM_getValue('rebuy_ship', false),
+        ];
+        const self = cards ? cards[0].self : undefined;
+        handleButtonClick(rebuyButton, () => rebuy(states, self, true), ([success, f]) => setAlert(f, success));
+    });
+
+    sellButton.addEventListener('click', () => {
+        if (confirm("Are you sure you want to sell all non-soldier units?")) {
+            const self = cards ? cards[0].self : undefined;
+            handleButtonClick(sellButton, () => rebuy([false, true, true, true], self, false), ([success, f]) => setAlert(f, success));
+        }
+    });
+
     fetchProjectsButton.addEventListener('click', () => {
         fetchProjects();
     });
-    rebuyDiv.appendChild(fetchProjectsButton);
 }
 
-function rebuy(units: boolean[]) {
-    / / + JSON.stringify(units)
-    alert("Rebuying units is not yet implemented");
+async function rebuy(units: boolean[], self: CardSide | undefined, buyOrsell: boolean): Promise<[boolean, string]> {
+    const unitInfo: [UnitPurchaseFormInfo, number][] = [];
+    if (units[0]) unitInfo.push([UNIT_PURCHASES.Soldiers, self ? self.soldier! : -1]);
+    if (units[1]) unitInfo.push([UNIT_PURCHASES.Tanks, self ? self.tank! : -1]);
+    if (units[2]) unitInfo.push([UNIT_PURCHASES.Aircraft, self ? self.aircraft! : -1]);
+    if (units[3]) unitInfo.push([UNIT_PURCHASES.Ships, self ? self.ship! : -1]);
+    if (unitInfo.length === 0) {
+        return [true, 'No units selected'];
+    }
+    let message = '';
+    let allSuccess = true;
+    for (let i = 0; i < unitInfo.length; i++) {
+        const [isSuccess, msg] = await buyUnit(unitInfo[i][0], buyOrsell, unitInfo[i][1]);
+        allSuccess = allSuccess && isSuccess;
+        message += msg + '\n';
+        await delay(10);
+    }
+    return [allSuccess, message.trim()];
 }
 
-function sellNonSoldiers() {
-    alert("Selling non-soldier units is not yet implemented");
+function buyUnit(unitInfo: UnitPurchaseFormInfo, buyOrSell: boolean, currentAmount: number): Promise<[boolean, string]> {
+    const url = window.location.origin + unitInfo.url;
+    if (!buyOrSell && currentAmount === 0) {
+        return Promise.resolve([true, `No ${unitInfo.name} to sell`]);
+    }
+    const result: Promise<[boolean, string]> = get(url).then(doc => {
+        const form = doc.querySelector('form');
+        if (!form) {
+            return Promise.reject<[boolean, string]>([false, 'Form not found']);
+        }
+        const postData: { [key: string]: string } = {};
+        const token = (doc.querySelector('[name=token]') as HTMLInputElement).value;
+        postData['token'] = token;
+
+        const submit = form.querySelector('input[type=submit]') as HTMLInputElement;
+        postData[submit.name] = submit.value;
+
+        const amountInput = form.querySelector('input[type=text]') as HTMLInputElement;
+        let amt = buyOrSell ? parseInt(amountInput.value ?? '0') : parseInt(amountInput.getAttribute('minimum') ?? '0');
+        if (amt === 0 && unitInfo.isProjectile && buyOrSell) {
+            amt = 1;
+        }
+        if (currentAmount != -1 && !buyOrSell) {
+            amt = -currentAmount;
+        }
+        postData[amountInput.name] = amt.toString();
+        if (amt === 0) {
+            return Promise.resolve<[boolean, string]>([true, `No ${unitInfo.name} to ${buyOrSell ? 'buy' : 'sell'}`]);
+        }
+        return post(url, new URLSearchParams(Object.entries(postData))).then(doc => {
+            let alert = doc.querySelector('.alert.alert-success');
+            if (!alert) alert = doc.querySelector('.alert.alert-danger');
+            if (alert) {
+                return [true, alert.textContent!.trim()];
+            } else {
+                return [false, `Attempted to purchase ${amt} ${unitInfo.name} but no response was found`];
+            }
+        });
+    }).catch(error => {
+        console.error("Request failed:", error);
+        return [false, 'Request failed'];
+    }) as Promise<[boolean, string]>;
+    return result;
 }
 
 function fetchProjects() {

@@ -368,14 +368,21 @@ export function attackConsumption(units: MilitaryUnits): { [key in Resources]?: 
     return consumption;
 }
 
-const UNIT_PURCHASES = {
-    Soldiers: { url: "https://politicsandwar.com/nation/military/soldiers/", id: "soldiers", buyname: "soldiers", uniqueparam: "buysoldiers=Enlist%2FDischarge+Soldiers" },
-    Tanks: { url: "https://politicsandwar.com/nation/military/tanks/", id: "tanks", buyname: "tanks", uniqueparam: "buytanks=Manufacture%2FDecommission+Tanks" },
-    Aircraft: { url: "https://politicsandwar.com/nation/military/aircraft/", id: "aircraft", buyname: "aircraft", uniqueparam: "buyaircraft=Manufacture%2FDecommission+Aircraft" },
-    Ships: { url: "https://politicsandwar.com/nation/military/navy/", id: "ships", buyname: "ships", uniqueparam: "buyships=Manufacture%2FDecommission+Ships" },
-    Spies: { url: "https://politicsandwar.com/nation/military/spies/", id: "aircraftinput", buyname: "spies", uniqueparam: "train_spies=Enlist%2FDischarge+Spies" },
-    Missiles: { url: "https://politicsandwar.com/nation/military/missiles/", id: "aircraftinput", buyname: "missile_purchase_input_amount", uniqueparam: "missile_purchase_form_submit=Manufacture%2FDecommission+Missiles" },
-    Nukes: { url: "https://politicsandwar.com/nation/military/nukes/", id: "aircraftinput", buyname: "ships", uniqueparam: "buyships=Manufacture%2FDecommission+Nuclear+Weapons" }
+export type UnitPurchaseFormInfo = {
+    url: string,
+    id: string,
+    name: string,
+    isProjectile?: boolean,
+}
+
+export const UNIT_PURCHASES = {
+    Soldiers: { url: "/nation/military/soldiers/", id: "soldiers", name: "soldiers" } as UnitPurchaseFormInfo,
+    Tanks: { url: "/nation/military/tanks/", id: "tanks", name: "tanks" } as UnitPurchaseFormInfo,
+    Aircraft: { url: "/nation/military/aircraft/", id: "aircraft", name: "aircraft" } as UnitPurchaseFormInfo,
+    Ships: { url: "/nation/military/navy/", id: "ships", name: "ships" } as UnitPurchaseFormInfo,
+    Spies: { url: "/nation/military/spies/", id: "aircraftinput", name: "spies" } as UnitPurchaseFormInfo,
+    Missiles: { url: "/nation/military/missiles/", id: "aircraftinput", name: "missile_purchase_input_amount", isProjectile: true } as UnitPurchaseFormInfo,
+    Nukes: { url: "/nation/military/nukes/", id: "aircraftinput", name: "ships", isProjectile: true } as UnitPurchaseFormInfo,
 };
 
 export interface BattleDetails {
