@@ -55,6 +55,14 @@ function removeElems() {
     });
     const header = document.getElementById('header');
     if (header) header.innerHTML = '';
+    // alert div, with fixed height, as second child of tailwindBody
+    const alertDiv = document.createElement('div');
+    alertDiv.id = 'alert-div';
+    alertDiv.style.height = '120px';
+    alertDiv.style.overflow = 'auto';
+    alertDiv.innerHTML = 'Alerts will appear here...';
+    alertDiv.classList.add('border', 'border-gray-300', 'rounded', 'p-2', 'bg-gray-200');
+    tailwindBody.insertBefore(alertDiv, tailwindBody.children[1]);
 }
 
 export type CardInfo = {
@@ -618,19 +626,15 @@ function executeAttack(cards: CardInfo[], attack: AttackInfo, element: HTMLButto
 }
 
 function setAlert(message: string, isSuccess: boolean) {
-    let tailwindBody = getFinalBody();
-    const existingAlert = tailwindBody.querySelector('#alert-message');
-    if (existingAlert) {
-        tailwindBody.removeChild(existingAlert);
-    }
-    const alertDiv = document.createElement('div');
-    alertDiv.id = 'alert-message';
+    let alertDiv = document.getElementById('alert-div') as HTMLElement;
+    alertDiv.innerHTML = '';
+
+    const child = document.createElement('div');
+    child.id = 'alert-message';
     const alertColor = isSuccess ? 'pw-alert-green' : 'pw-alert-red';
-    alertDiv.classList.add('p-4', 'm-2', 'strong', 'bg-red-300', 'pw-alert', alertColor);
-    alertDiv.innerHTML = message;
-    const centerDiv = tailwindBody.querySelector('.text-center') as HTMLElement;
-    tailwindBody.insertBefore(alertDiv, centerDiv.nextSibling);
-    window.scrollTo({ top: 0 });
+    child.classList.add('p-4', 'm-2', 'strong', 'bg-red-300', 'pw-alert', alertColor);
+    child.innerHTML = message;
+    alertDiv.appendChild(child);
 }
 
 function updateResources(doc: Document) {
@@ -653,7 +657,7 @@ function addRebuyButtons(cards: CardInfo[]) {
         rebuyDiv = document.createElement('div');
         rebuyDiv.id = 'rebuy-div';
         rebuyDiv.classList.add('flex', 'gap-0.5', 'mt-2', 'w-full');
-        tailwindBody.insertBefore(rebuyDiv, tailwindBody.children[2]);
+        tailwindBody.insertBefore(rebuyDiv, tailwindBody.children[3]);
 
         addCheckboxWithGMVariable('rebuy_soldier', 'soldiers', (checked) => {}, (checked) => {}, rebuyDiv, false);
         addCheckboxWithGMVariable('rebuy_tank', 'tanks', (checked) => {}, (checked) => {}, rebuyDiv, false);
