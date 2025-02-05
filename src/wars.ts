@@ -26,6 +26,7 @@ import {
     VR,
     handleButtonClick
 } from "./lib";
+import {getOrFetchProjectsForAll, PROJECT_BITS} from "./projects";
 
 export function initWarsPage() {
     const url = "/index.php?id=15&amp;keyword=1725.26&amp;cat=war_range&amp;ob=score&amp;od=ASC&amp;maximum=15&amp;minimum=0&amp;search=Go&amp;beige=true&amp;vmode=false&amp;openslots=true";
@@ -61,6 +62,7 @@ export type CardInfo = {
     self: CardSide;
     other: CardSide;
     id: number;
+    enemy_project_bits: number | undefined;
 }
 
 export type CardSide = MilitaryUnits & {
@@ -78,15 +80,13 @@ function parseUnits() {
     const elems = document.querySelectorAll('.pw-card');
     if (!elems) return cards;
     elems.forEach(card => {
-        // get war id from <a href="/nation/war/timeline/war=163889" class="inline-flex text-xl items-center gap-0.5 text-white hover:text-gray-100 focus:text-gray-200
-        //     bg-blue-600 hover:bg-blue-700 active:bg-blue-800 justify-center rounded py-2 px-3
-        //     typically:no-underline w-full">War Timeline</a>
         const warLink = card.querySelector('a[href^="/nation/war/timeline/war="]');
         if (!warLink) return;
         const warID = parseInt(warLink.getAttribute('href')!.split('=')[1]);
         const selfUnits = parseCardSide(card, false);
         const opponentUnits = parseCardSide(card, true);
-        cards.push({ element: card, self: selfUnits, other: opponentUnits, id: warID });
+        const bitsAndDate = GM_getValue(`projects_${opponentUnits.nation_id}`, undefined);
+        cards.push({ element: card, self: selfUnits, other: opponentUnits, id: warID, enemy_project_bits: bitsAndDate ? bitsAndDate & 0xF : undefined });
     });
     return cards;
 }
@@ -375,8 +375,31 @@ function setValidAttacks(cards: CardInfo[], card: CardInfo) {
         enemyOdds.appendChild(OddsComponent({ title: 'Air', odds: getOddsArr(card.other.aircraft!, card.self.aircraft!) }));
         enemyOdds.appendChild(OddsComponent({ title: 'Naval', odds: getOddsArr(card.other.ship!, card.self.ship!) }));
     }
+    setEnemyProjects(card);
 
     return attacks;
+}
+function setEnemyProjects(card: CardInfo) {
+    let projectElem = card.element.querySelector('.pw-card-projects');
+    if (!projectElem) {
+        projectElem = document.createElement('div');
+        projectElem.classList.add('pw-card-projects');
+        card.element.appendChild(HR());
+        card.element.appendChild(projectElem);
+    }
+    projectElem.innerHTML = '';
+    if (card.enemy_project_bits === undefined) {
+        projectElem.textContent = 'Projects are not fetched...';
+    } else if (card.enemy_project_bits === 0) {
+        projectElem.textContent = 'No projectile projects';
+    } else {
+        for (const [project, bit] of Object.entries(PROJECT_BITS)) {
+            const hasProject = (card.enemy_project_bits ?? 0) & bit;
+            if (hasProject) {
+                projectElem.appendChild(span(project));
+            }
+        }
+    }
 }
 
 function OddsComponent({ title, odds, label, text }: { title: string, odds: number[], label?: boolean, text?: boolean }) {
@@ -447,7 +470,7 @@ function addAutoAttack(cards: CardInfo[], attacks: [CardInfo, AttackInfo[]][] ) 
     }
 
     let first: [CardInfo, AttackInfo] | null = null;
-    for (const [card, attackList] of attacks) {
+    for (let [card, attackList] of attacks) {
         for (const attack of attackList) {
             if (attack.requirePrompt) continue;
             const maxVal = Math.max(...attack.odds);
@@ -472,7 +495,7 @@ function addAutoAttack(cards: CardInfo[], attacks: [CardInfo, AttackInfo[]][] ) 
             autoBtn = document.createElement('button');
             autoBtn.classList.add('inline-flex', 'text-xl', 'items-center', 'mr-2', 'text-white', 'hover:text-gray-100', 'active:text-gray-200', 'focus:text-white', 'bg-red-600', 'hover:bg-red-700', 'active:bg-red-800', 'justify-center', 'rounded', 'py-2', 'px-3', 'typically:no-underline');
             autoBtn.id = 'auto-attack';
-            centerDiv.appendChild(autoBtn);
+            autoBtn = centerDiv.appendChild(autoBtn);
         }
         autoBtn.textContent = `Attack ${card.other.name}: ${attack.toString()}`;
         autoBtn.onclick = () => executeAttack(cards, attack, autoBtn, card);
@@ -678,50 +701,73 @@ function addRebuyButtons(cards: CardInfo[]) {
             GM_getValue('rebuy_ship', false),
         ];
         const self = cards ? cards[0].self : undefined;
-        handleButtonClick(rebuyButton, () => rebuy(states, self, true), ([success, f]) => setAlert(f, success));
+        handleButtonClick(rebuyButton, () =>
+            rebuy(states, self, true), f => handleRebuyResponse(f, cards));
     });
 
     sellButton.addEventListener('click', () => {
         if (confirm("Are you sure you want to sell all non-soldier units?")) {
             const self = cards ? cards[0].self : undefined;
-            handleButtonClick(sellButton, () => rebuy([false, true, true, true], self, false), ([success, f]) => setAlert(f, success));
+            handleButtonClick(sellButton, () =>
+                rebuy([false, true, true, true], self, false), f => handleRebuyResponse(f, cards));
         }
     });
 
-    fetchProjectsButton.addEventListener('click', () => {
-        fetchProjects();
+    fetchProjectsButton.addEventListener('click', (event) => {
+        fetchProjects(event.currentTarget as HTMLButtonElement, cards);
     });
 }
 
-async function rebuy(units: boolean[], self: CardSide | undefined, buyOrsell: boolean): Promise<[boolean, string]> {
-    const unitInfo: [UnitPurchaseFormInfo, number][] = [];
-    if (units[0]) unitInfo.push([UNIT_PURCHASES.Soldiers, self ? self.soldier! : -1]);
-    if (units[1]) unitInfo.push([UNIT_PURCHASES.Tanks, self ? self.tank! : -1]);
-    if (units[2]) unitInfo.push([UNIT_PURCHASES.Aircraft, self ? self.aircraft! : -1]);
-    if (units[3]) unitInfo.push([UNIT_PURCHASES.Ships, self ? self.ship! : -1]);
+function handleRebuyResponse(response: [number, number, number, number, string], cards: CardInfo[]) {
+    const [soldier, tank, aircraft, ship, message] = response;
+    const isSuccess = soldier + tank + aircraft + ship > 0;
+    if (message) setAlert(message, isSuccess);
+    if (isSuccess) updateCardsForRebuy([soldier, tank, aircraft, ship], cards);
+}
+
+function updateCardsForRebuy(units: number[], cards: CardInfo[]) {
+    let hasChanged = units.some(unit => unit !== 0);
+    if (!hasChanged) return false;
+    for (let card of cards) {
+        card.self.soldier! += units[0];
+        card.self.tank! += units[1];
+        card.self.aircraft! += units[2];
+        card.self.ship! += units[3];
+        setCard(card, undefined, undefined);
+    }
+
+    return true;
+}
+
+async function rebuy(units: boolean[], self: CardSide | undefined, buyOrsell: boolean): Promise<[number, number, number, number, string]> {
+    const unitInfo: [UnitPurchaseFormInfo, number, number][] = [];
+    if (units[0]) unitInfo.push([UNIT_PURCHASES.Soldiers, self ? self.soldier! : -1, 0]);
+    if (units[1]) unitInfo.push([UNIT_PURCHASES.Tanks, self ? self.tank! : -1, 1]);
+    if (units[2]) unitInfo.push([UNIT_PURCHASES.Aircraft, self ? self.aircraft! : -1, 2]);
+    if (units[3]) unitInfo.push([UNIT_PURCHASES.Ships, self ? self.ship! : -1, 3]);
     if (unitInfo.length === 0) {
-        return [true, 'No units selected'];
+        return [0, 0, 0, 0, 'No units selected'];
     }
     let message = '';
-    let allSuccess = true;
+    let result = [0, 0, 0, 0];
     for (let i = 0; i < unitInfo.length; i++) {
-        const [isSuccess, msg] = await buyUnit(unitInfo[i][0], buyOrsell, unitInfo[i][1]);
-        allSuccess = allSuccess && isSuccess;
+        const [amt, msg] = await buyUnit(unitInfo[i][0], buyOrsell, unitInfo[i][1]);
+        result[unitInfo[i][2]] = amt;
         message += msg + '\n';
         await delay(10);
     }
-    return [allSuccess, message.trim()];
+    return [result[0], result[1], result[2], result[3], message.trim()];
 }
 
-function buyUnit(unitInfo: UnitPurchaseFormInfo, buyOrSell: boolean, currentAmount: number): Promise<[boolean, string]> {
+function buyUnit(unitInfo: UnitPurchaseFormInfo, buyOrSell: boolean, currentAmount: number): Promise<[number, string]> {
     const url = window.location.origin + unitInfo.url;
     if (!buyOrSell && currentAmount === 0) {
-        return Promise.resolve([true, `No ${unitInfo.name} to sell`]);
+        return Promise.resolve([0, `No ${unitInfo.name} to sell`]);
     }
-    const result: Promise<[boolean, string]> = get(url).then(doc => {
+    const result: Promise<[number, string]> = get(url).then(doc => {
         const form = doc.querySelector('form');
         if (!form) {
-            return Promise.reject<[boolean, string]>([false, 'Form not found']);
+            return Promise.reject<[number, string]>([0, 'Form not found']);
         }
         const postData: { [key: string]: string } = {};
         const token = (doc.querySelector('[name=token]') as HTMLInputElement).value;
@@ -740,24 +786,40 @@ function buyUnit(unitInfo: UnitPurchaseFormInfo, buyOrSell: boolean, currentAmou
         }
         postData[amountInput.name] = amt.toString();
         if (amt === 0) {
-            return Promise.resolve<[boolean, string]>([true, `No ${unitInfo.name} to ${buyOrSell ? 'buy' : 'sell'}`]);
+            return Promise.resolve<[number, string]>([0, `No ${unitInfo.name} to ${buyOrSell ? 'buy' : 'sell'}`]);
         }
         return post(url, new URLSearchParams(Object.entries(postData))).then(doc => {
             let alert = doc.querySelector('.alert.alert-success');
-            if (!alert) alert = doc.querySelector('.alert.alert-danger');
             if (alert) {
-                return [true, alert.textContent!.trim()];
-            } else {
-                return [false, `Attempted to purchase ${amt} ${unitInfo.name} but no response was found`];
+                return [amt, alert.textContent!.trim()];
             }
+            alert = doc.querySelector('.alert.alert-danger');
+            if (alert) {
+                return [0, alert.textContent!.trim()];
+            }
+            return [0, `Attempted to purchase ${amt} ${unitInfo.name} but no response was found`];
         });
     }).catch(error => {
         console.error("Request failed:", error);
-        return [false, 'Request failed'];
-    }) as Promise<[boolean, string]>;
+        return [0, 'Request failed'];
+    }) as Promise<[number, string]>;
     return result;
 }
 
-function fetchProjects() {
-    alert("Fetching ID/VDS is not yet implemented");
+function fetchProjects(btn: HTMLButtonElement, cards: CardInfo[]) {
+    const nationIds = cards.map(card => card.other.nation_id);
+    if (nationIds.length == 0) {
+        alert("No wars found");
+        return;
+    }
+    handleButtonClick(btn, async () => {
+        return getOrFetchProjectsForAll(nationIds, true, 6);
+    }, byNation => {
+        for (let card of cards) {
+            const nationId = card.other.nation_id;
+            card.enemy_project_bits = byNation[nationId];
+            setEnemyProjects(card);
+        }
+        alert("Successfully fetched projects for " + nationIds.length + " nations");
+    });
 }

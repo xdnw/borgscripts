@@ -50,7 +50,9 @@ module.exports = {
                     'GM_addValueChangeListener',
                     'GM_xmlhttpRequest',
                     'GM_getResourceText',
-                    'GM_addStyle'
+                    'GM_addStyle',
+                    'GM_listValues',
+                    'GM_deleteValue',
                 ],
                 icon: 'https://raw.githubusercontent.com/xdnw/lc_stats_svelte/refs/heads/main/static/favicon-large.webp',
                 connect: [

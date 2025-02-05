@@ -247,14 +247,17 @@ export function delay(ms: number) {
 
 export async function handleButtonClick<T>(button: HTMLButtonElement, action: () => Promise<T>, callback: (result: T) => void) {
     const originalHTML = button.innerHTML;
-    replaceTextWithoutRemovingChildren(button, 'Loading…');
+    const placeholder = 'Loading…';
+    replaceTextWithoutRemovingChildren(button, placeholder);
     button.disabled = true;
 
     try {
         const result = await action();
         callback(result);
     } finally {
-        button.innerHTML = originalHTML;
+        if (button.textContent && button.textContent.includes(placeholder)) {
+            button.innerHTML = originalHTML;
+        }
         button.disabled = false;
     }
 }
