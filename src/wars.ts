@@ -700,14 +700,14 @@ function addRebuyButtons(cards: CardInfo[]) {
             GM_getValue('rebuy_aircraft', false),
             GM_getValue('rebuy_ship', false),
         ];
-        const self = cards ? cards[0].self : undefined;
+        const self = cards.length > 0 ? cards[0].self : undefined;
         handleButtonClick(rebuyButton, () =>
             rebuy(states, self, true), f => handleRebuyResponse(f, cards));
     });
 
     sellButton.addEventListener('click', () => {
         if (confirm("Are you sure you want to sell all non-soldier units?")) {
-            const self = cards ? cards[0].self : undefined;
+            const self = cards.length > 0 ? cards[0].self : undefined;
             handleButtonClick(sellButton, () =>
                 rebuy([false, true, true, true], self, false), f => handleRebuyResponse(f, cards));
         }
