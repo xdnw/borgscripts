@@ -41,7 +41,8 @@ module.exports = {
                 description: 'War type in URL, default war type button, captcha autofill, captcha solver, auto declare war, war declare auto redirect',
                 author: 'Borg',
                 match: [
-                    '*://*politicsandwar.com/*',
+                    '*://politicsandwar.com/*',
+                    '*://test.politicsandwar.com/*',
                     '*://*/recaptcha/*'
                 ],
                 grant: [

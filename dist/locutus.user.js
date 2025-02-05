@@ -3,7 +3,8 @@
 // @description War type in URL, default war type button, captcha autofill, captcha solver, auto declare war, war declare auto redirect
 // @version     0.3
 // @author      Borg
-// @match       *://*politicsandwar.com/*
+// @match       *://politicsandwar.com/*
+// @match       *://test.politicsandwar.com/*
 // @match       *://*/recaptcha/*
 // @connect     engageub.pythonanywhere.com
 // @connect     engageub1.pythonanywhere.com
