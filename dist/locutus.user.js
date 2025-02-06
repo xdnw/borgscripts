@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Declare War
 // @description War type in URL, default war type button, captcha autofill, captcha solver, auto declare war, war declare auto redirect
-// @version     0.6
+// @version     0.7
 // @author      Borg
 // @match       *://politicsandwar.com/*
 // @match       *://test.politicsandwar.com/*
