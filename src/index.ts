@@ -1,12 +1,17 @@
 import {urlMatches} from './lib'
 import {captcha} from "./captcha";
-import {handleRedirect, handleWarType} from "./declare";
+import {handleWarType} from "./declare";
 import {initBankScripts} from "./bank";
 import {initWarsPage} from "./wars";
 import {addDefaultStyles} from "./style";
 import {cacheProjects} from "./projects";
+import {addBulkPurchase} from "./vip";
 
 try {
+    let newCSS = GM_getResourceText ("jqueryui");
+    GM_addStyle (newCSS);
+    require('webpack-jquery-ui/dialog');
+
 // All pages
     captcha();
 
@@ -16,9 +21,8 @@ try {
     }
 
 // War Declaration page
-    if (urlMatches(/politicsandwar\.com\/nation\/war\/declare/)) {
+    if (urlMatches(/politicsandwar\.com\/nation\/war\/declare\/id=[0-9]+/)) {
         handleWarType();
-        handleRedirect();
     }
 
 // Bank page
@@ -35,6 +39,10 @@ try {
 
     if (urlMatches(/politicsandwar\.com\/nation\/id=[0-9]+$/)) {
         cacheProjects(document, window.location.href);
+    }
+
+    if (urlMatches(/politicsandwar.com\/cities\/$/)) {
+        addBulkPurchase();
     }
 } catch (e) {
     console.error(e);

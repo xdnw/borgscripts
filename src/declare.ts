@@ -1,4 +1,47 @@
+import {getWarUrl} from "./pw-util";
+
+function resetAutoCaptcha() {
+    const captchaOriginalValue = GM_getValue('captchaAutofillEnabled_original', undefined)
+    if (captchaOriginalValue !== undefined) {
+        GM_setValue('captchaAutofillEnabled', captchaOriginalValue);
+    } else {
+        GM_deleteValue('captchaAutofillEnabled');
+    }
+}
+
 export function handleWarType() {
+    const id =  parseInt((window.location.href.match(/politicsandwar\.com\/nation\/war\/declare\/id=(\d+)/) || [])[1]);
+    const bulkDeclareStr = GM_getValue('bulkDeclare') as string;
+    let bulkDeclare = bulkDeclareStr ? JSON.parse(bulkDeclareStr) as { ids: number[], type: string, reason: string, date: number } : undefined;
+    if (bulkDeclare && bulkDeclare.ids.includes(id)) {
+        bulkDeclare = {
+            ids: bulkDeclare.ids.filter((i: number) => i !== id),
+            type: bulkDeclare.type,
+            reason: bulkDeclare.reason,
+            date: Date.now(),
+        }
+        GM_setValue('bulkDeclare', JSON.stringify(bulkDeclare));
+    }
+    if (shouldRedirect()) {
+        if (bulkDeclare) {
+            if (bulkDeclare.date > Date.now() - 1000 * 60 * 5) {
+                if (bulkDeclare.ids.length === 0) {
+                    GM_deleteValue('bulkDeclare');
+                    resetAutoCaptcha();
+                } else {
+                    const nextId = bulkDeclare.ids[0];
+                    window.location.href = getWarUrl(nextId, bulkDeclare.type, bulkDeclare.reason);
+                    return;
+                }
+            } else {
+                GM_deleteValue('bulkDeclare');
+                resetAutoCaptcha();
+            }
+        }
+        window.location.href = '/nation/war/';
+        return;
+    }
+
     const warTypeMap: { [key: string]: string } = {
         'ordinary': 'ord',
         'ord': 'ord',
@@ -8,7 +51,17 @@ export function handleWarType() {
     };
 
     const urlParams = new URLSearchParams(window.location.search);
-    let warType = urlParams.get('type');
+
+    const reason = urlParams.get('reason') as string;
+    if (reason) {
+        const decodedReason = decodeURIComponent(reason);
+        const reasonInput = document.getElementById('reason') as HTMLInputElement;
+        if (reasonInput) {
+            reasonInput.value = decodedReason;
+        }
+    }
+
+    let warType = urlParams.get('type') as string;
     const gmVariable = 'defaultWarType'; // Replace with actual GM variable
     let defaultWarType = GM_getValue(gmVariable, 'ord'); // Replace 'ord' with your default value
     if (!warType) {
@@ -16,7 +69,7 @@ export function handleWarType() {
     } else {
         warType = warTypeMap[warType] || defaultWarType;
     }
-    const warTypeSelect = document.getElementById('war_type') as HTMLSelectElement | null;
+    const warTypeSelect = document.getElementById('war_type') as HTMLSelectElement;
     if (!warTypeSelect) return;
 
     if (warType && warTypeMap[warType]) {
@@ -46,12 +99,24 @@ export function handleWarType() {
     updateButtonVisibility(); // Initial check on page load
 }
 
-export function handleRedirect() {
-    const alertElements = document.querySelectorAll('.pw-alert.pw-alert-green.block');
-    alertElements.forEach(element => {
-        if (element.textContent && element.textContent.includes('You have declared war on')) {
-            // Redirect to the specified URL
-            window.location.href = '/nation/war/';
+function shouldRedirect() {
+    let alertElements = document.querySelectorAll('.pw-alert.pw-alert-green.block');
+    for (const element of alertElements) {
+        const text = element.textContent;
+        if (text && text.includes('You have declared war on')) {
+            return true;
         }
-    });
+    }
+    alertElements = document.querySelectorAll('.pw-alert.pw-alert-red');
+    for (const element of alertElements) {
+        const text = element.textContent;
+        if (text && (
+            text.includes('You have already been involved in a war with this nation in the last 12 turns.') ||
+            text.includes('You can\'t declare war on this nation because they are outside of your war range.') ||
+            text.includes('You do not have any offensive war slots available')
+        )) {
+            return true;
+        }
+    }
+    return false;
 }

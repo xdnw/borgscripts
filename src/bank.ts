@@ -1,6 +1,5 @@
 import $ from 'jquery';
 import {getResources} from "./pw-util";
-require('webpack-jquery-ui/dialog');
 // require('webpack-jquery-ui/css');
 
 const FEATURE_BANK_POLLING = false;
@@ -544,8 +543,6 @@ function pollBankRequests() {
 
 export function initBankScripts() {
     if (document.getElementById("deposit")) {
-        let newCSS = GM_getResourceText ("jqueryui");
-        GM_addStyle (newCSS);
         initBankListener();
         initDisburse();
         initDepositAll();

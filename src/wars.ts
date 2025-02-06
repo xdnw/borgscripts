@@ -1,3 +1,5 @@
+import $ from 'jquery';
+
 import {
     Airstrike,
     AirstrikeTarget,
@@ -7,7 +9,7 @@ import {
     getOdds, getOddsArr,
     getResources,
     getStatusHtml,
-    getValidAttacks,
+    getValidAttacks, getWarUrl,
     GroundAttack,
     groundStrength,
     MilitaryUnits,
@@ -55,6 +57,7 @@ function removeElems() {
     });
     const header = document.getElementById('header');
     if (header) header.innerHTML = '';
+
     // alert div, with fixed height, as second child of tailwindBody
     const alertDiv = document.createElement('div');
     alertDiv.id = 'alert-div';
@@ -520,6 +523,97 @@ function addAutoAttack(cards: CardInfo[], attacks: [CardInfo, AttackInfo[]][] ) 
         };
         centerDiv.appendChild(infoBtn);
     }
+
+    // Declare bulk
+    let bulkBtn = document.getElementById('bulk-declare') as HTMLButtonElement;
+    if (!bulkBtn) {
+        bulkBtn = document.createElement('button');
+        bulkBtn.id = 'bulk-declare';
+        bulkBtn.textContent = 'Declare Bulk';
+        bulkBtn.classList.add('inline-flex', 'text-xl', 'items-center', 'mr-2', 'text-white', 'hover:text-gray-100', 'active:text-gray-200', 'focus:text-white', 'bg-green-600', 'hover:bg-green-700', 'active:bg-green-800', 'justify-center', 'rounded', 'py-2', 'px-3', 'typically:no-underline');
+        bulkBtn.onclick = () => {
+            declareBulk();
+        };
+        centerDiv.appendChild(VR());
+        centerDiv.appendChild(bulkBtn);
+    }
+}
+
+function declareBulk() {
+    const dialog = $('<div></div>')
+        .html(`
+<form id="bulkDeclareForm">
+    <div>
+        <label for="urls">URLs:</label><br>
+        <textarea id="urls" name="urls" rows="5" cols="55" required></textarea>
+    </div>
+    <div>
+        <label for="warType">War Type:</label>
+        <select id="warType" name="warType" required>
+            <option value="raid">Raid</option>
+            <option value="ordinary">Ordinary</option>
+            <option value="attrition">Attrition</option>
+        </select>
+    </div>
+    <div>
+        <label for="reason">Reason:</label>
+        <input type="text" id="reason" name="reason" maxlength="120" required value="counter">
+    </div>
+    <div>
+        <button type="button" id="validateButton" class="btn btn-default">Validate</button>
+        <button type="submit" class="btn btn-default">Submit</button>
+    </div>
+</form>
+        `)
+        .dialog({
+            autoOpen: false,
+            title: 'Declare Bulk War',
+            width: 525,
+            modal: true,
+            buttons: {
+                Close: function() {
+                    $(this).dialog('close');
+                }
+            }
+        });
+
+    dialog.dialog('open');
+
+    function validateUrls(): boolean {
+        const urls = ($('#urls').val() as string).trim();
+        if (!urls) {
+            alert('Please enter some URLs.');
+            return false;
+        }
+        const urlPattern = new RegExp(window.location.origin + "/nation/war/declare/id=[0-9]+");
+        const isValid = urls.split('\n').every(url => urlPattern.test(url.trim()));
+        if (isValid) {
+            return true;
+        } else {
+            alert('Invalid URL(s) entered. Please provide valid urls in the form:\n' +
+                window.location.origin + '/nation/war/declare/id=123456');
+            return false;
+        }
+    }
+
+    $('#validateButton').on('click', function() {
+        if (validateUrls()) alert('URLs are valid.');
+    });
+
+    $('#bulkDeclareForm').on('submit', function(event) {
+        event.preventDefault();
+        if (!validateUrls()) return;
+        const ids: number[] = ($('#urls').val() as string).trim().split('\n').map(url => parseInt(url.split('=')[1]));
+        const warType = ($('#warType').val() as string).toLowerCase();
+        const reason = $('#reason').val() as string;
+        const captchaOriginalValue = GM_getValue('captchaAutofillEnabled', undefined)
+        if (captchaOriginalValue !== undefined) {
+            GM_setValue('captchaAutofillEnabled_original', captchaOriginalValue);
+        }
+        GM_setValue('captchaAutofillEnabled', true);
+        GM_setValue('bulkDeclare', JSON.stringify({ ids: ids, type: warType, reason: reason, date: Date.now() }));
+        window.location.href = getWarUrl(ids[0], warType, reason);
+    });
 }
 
 function createAttackButton(cards: CardInfo[], attack: AttackInfo, card: CardInfo) {

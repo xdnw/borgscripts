@@ -446,3 +446,7 @@ export function extractBattleDetails(text: string, unitTypes: string[]): BattleD
         infrastructureDestroyed: infrastructureMatch ? parseInt(infrastructureMatch[1]) : 0,
     };
 }
+
+export function getWarUrl(nationId: number, warType: string, reason: string) {
+    return window.location.origin + `/nation/war/declare/id=${nationId}?auto=true&war_type=${warType}&reason=${encodeURIComponent(reason)}`;
+}
