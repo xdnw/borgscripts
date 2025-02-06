@@ -7,6 +7,7 @@ function resetAutoCaptcha() {
     } else {
         GM_deleteValue('captchaAutofillEnabled');
     }
+    GM_deleteValue('captchaAutofillEnabled_original');
 }
 
 export function handleWarType() {
@@ -22,12 +23,14 @@ export function handleWarType() {
         }
         GM_setValue('bulkDeclare', JSON.stringify(bulkDeclare));
     }
-    if (shouldRedirect()) {
+    let shouldRedirectValue = shouldRedirect();
+    if (shouldRedirectValue !== 0) {
         if (bulkDeclare) {
             if (bulkDeclare.date > Date.now() - 1000 * 60 * 5) {
                 if (bulkDeclare.ids.length === 0) {
                     GM_deleteValue('bulkDeclare');
                     resetAutoCaptcha();
+                    shouldRedirectValue = 1;
                 } else {
                     const nextId = bulkDeclare.ids[0];
                     window.location.href = getWarUrl(nextId, bulkDeclare.type, bulkDeclare.reason);
@@ -38,7 +41,9 @@ export function handleWarType() {
                 resetAutoCaptcha();
             }
         }
-        window.location.href = '/nation/war/';
+        if (shouldRedirectValue === 1) {
+            window.location.href = '/nation/war/';
+        }
         return;
     }
 
@@ -99,12 +104,12 @@ export function handleWarType() {
     updateButtonVisibility(); // Initial check on page load
 }
 
-function shouldRedirect() {
+function shouldRedirect(): number {
     let alertElements = document.querySelectorAll('.pw-alert.pw-alert-green.block');
     for (const element of alertElements) {
         const text = element.textContent;
         if (text && text.includes('You have declared war on')) {
-            return true;
+            return 1;
         }
     }
     alertElements = document.querySelectorAll('.pw-alert.pw-alert-red');
@@ -115,8 +120,8 @@ function shouldRedirect() {
             text.includes('You can\'t declare war on this nation because they are outside of your war range.') ||
             text.includes('You do not have any offensive war slots available')
         )) {
-            return true;
+            return 2;
         }
     }
-    return false;
+    return 0;
 }
