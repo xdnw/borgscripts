@@ -448,5 +448,5 @@ export function extractBattleDetails(text: string, unitTypes: string[]): BattleD
 }
 
 export function getWarUrl(nationId: number, warType: string, reason: string) {
-    return window.location.origin + `/nation/war/declare/id=${nationId}?auto=true&war_type=${warType}&reason=${encodeURIComponent(reason)}`;
+    return window.location.origin + `/nation/war/declare/id=${nationId}?auto=true&type=${warType}&reason=${encodeURIComponent(reason)}`;
 }

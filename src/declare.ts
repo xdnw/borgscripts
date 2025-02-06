@@ -60,7 +60,7 @@ export function handleWarType() {
     const reason = urlParams.get('reason') as string;
     if (reason) {
         const decodedReason = decodeURIComponent(reason);
-        const reasonInput = document.getElementById('reason') as HTMLInputElement;
+        const reasonInput = document.querySelector('input[name="reason"]') as HTMLInputElement;
         if (reasonInput) {
             reasonInput.value = decodedReason;
         }
