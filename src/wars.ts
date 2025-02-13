@@ -544,7 +544,7 @@ function declareBulk() {
         .html(`
 <form id="bulkDeclareForm">
     <div>
-        <label for="urls">URLs:</label><br>
+        <label for="urls">Nation Declare URLs (one per line):</label><br>
         <textarea id="urls" name="urls" rows="5" cols="55" required></textarea>
     </div>
     <div>
