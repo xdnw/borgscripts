@@ -266,7 +266,7 @@ export class GroundAttack extends AttackInfo {
         let msg = 'Ground';
         if (this.soldiersUseMunitions) msg += " (armed)";
         else msg += " (unarmed)";
-        if (this.attTanks) msg += ' (no tanks)';
+        if (!this.attTanks) msg += ' (no tanks)';
         return msg;
     }
 }
