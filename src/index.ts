@@ -33,7 +33,7 @@ try {
 
 // War page
 // *politicsandwar.com/nation/war/
-    if (urlMatches(/politicsandwar\.com\/nation\/war\/$/)) {
+    if (urlMatches(/politicsandwar\.com\/nation\/war\/?$/)) {
         initWarsPage();
     }
 
