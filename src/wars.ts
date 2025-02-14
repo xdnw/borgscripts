@@ -325,7 +325,7 @@ function test(cards: CardInfo[]) {
         gasoline: 100,
         infrastructureDestroyed: 5,
     };
-    const dummyAttack = new GroundAttack({}, false, [0, 0, 0, 1], 500, 500, true);
+    const dummyAttack = new GroundAttack({}, false, [0, 0, 0, 1], 500, 500, true, true);
     setCard(cards[0], dummyAttack, dummyDetails);
     // setCard(cards[0], undefined, undefined);
 }
@@ -632,8 +632,13 @@ function createAttackButton(cards: CardInfo[], attack: AttackInfo, card: CardInf
 
     btn.classList.add('hover-opacity', 'active-opacity', 'rounded', 'w-full')
     btn.style.overflow = 'hidden';
-
     btn.style.position = 'relative';
+    if (!attack.hasMap || attack.disabled) {
+        btn.disabled = true;
+        btn.classList.add('text-gray-700');
+        btn.style.cursor = 'not-allowed';
+    }
+
     spanOverlay.style.position = 'absolute';
     spanOverlay.style.top = '0';
     spanOverlay.style.left = '0';
@@ -659,22 +664,24 @@ function createAttackButton(cards: CardInfo[], attack: AttackInfo, card: CardInf
         btn.appendChild(span("low", ["https://politicsandwar.com/img/resources/munitions.png", "https://politicsandwar.com/img/resources/gasoline.png"]));
     }
 
-    btn.onclick = () => {
-        if (attack.requirePrompt) {
-            const successStr = attack.odds
-                .filter(odd => odd > 0)
-                .map((odd, index) => `${oddsLabels[index]}: ${(odd * 100).toFixed(0)}%`)
-                .join(', ');
-            const userConfirmed = confirm("Are you sure you want to perform this attack?\n" +
-                attack.toString() + "\n" +
-                successStr);
-            if (userConfirmed) {
+    if (attack.hasMap) {
+        btn.onclick = () => {
+            if (attack.requirePrompt) {
+                const successStr = attack.odds
+                    .filter(odd => odd > 0)
+                    .map((odd, index) => `${oddsLabels[index]}: ${(odd * 100).toFixed(0)}%`)
+                    .join(', ');
+                const userConfirmed = confirm("Are you sure you want to perform this attack?\n" +
+                    attack.toString() + "\n" +
+                    successStr);
+                if (userConfirmed) {
+                    executeAttack(cards, attack, btn, card);
+                }
+            } else {
                 executeAttack(cards, attack, btn, card);
             }
-        } else {
-            executeAttack(cards, attack, btn, card);
-        }
-    };
+        };
+    }
     return btn;
 }
 

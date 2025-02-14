@@ -148,18 +148,18 @@ export function getValidAttacks(card: CardInfo): AttackInfo[] {
     const defender = card.other;
 
     const resources = getResources();
-    if (attMap >= 3 && attacker.soldier! >= 50) { // ground
+    if (attacker.soldier! >= 50) { // ground
         const defGroundStr = groundStrength(defender.soldier!, defender.tank!, true, card.self.status.includes(Status.AIR_SUPERIORITY));
-        const ga1 = new GroundAttack({}, false, getOddsArr(attacker.soldier!, defGroundStr), attacker.soldier!, 0, false);
+        const ga1 = new GroundAttack({}, false, getOddsArr(attacker.soldier!, defGroundStr), attacker.soldier!, 0, false, attMap >= 3);
         validAttacks.push(ga1);
         const perSoldier = attackConsumption({ soldier: 1 });
         const maxSoldiers = Math.min(attacker.soldier!, attacksForConsumption(perSoldier, resources));
         const soldierConsumption = attackConsumption({ soldier: maxSoldiers });
         if (maxSoldiers > 0) {
             const odds1 = getOddsArr(maxSoldiers, defGroundStr);
-            if (odds1[0] != 1) {
+            {
                 if (ga1.odds[3] != 1) ga1.requirePrompt = true;
-                const ga2 = new GroundAttack(soldierConsumption, maxSoldiers < attacker.soldier!, odds1, maxSoldiers, 0, true);
+                const ga2 = new GroundAttack(soldierConsumption, maxSoldiers < attacker.soldier!, odds1, maxSoldiers, 0, true, attMap >= 3).setRequirePrompt(odds1[0] == 1);
                 validAttacks.push(ga2);
                 if (maxSoldiers == attacker.soldier!) { // soldiers, with muni, + tanks
                     const remainingRss = addOrSubtractResources(resources, soldierConsumption, true);
@@ -169,34 +169,34 @@ export function getValidAttacks(card: CardInfo): AttackInfo[] {
                     const soldierAndTankConsumption = addOrSubtractResources(soldierConsumption, tankConsumption, false);
                     if (maxTanks > 0) {
                         const odds2 = getOddsArr(groundStrength(maxSoldiers, maxTanks, true, card.other.status.includes(Status.AIR_SUPERIORITY)), defGroundStr);
-                        if (odds2[0] != 1) {
+                        {
                             if (ga2.odds[3] != 1) ga2.requirePrompt = true;
-                            validAttacks.push(new GroundAttack(soldierAndTankConsumption, maxTanks < attacker.tank!, odds2, maxSoldiers, maxTanks, true));
+                            validAttacks.push(new GroundAttack(soldierAndTankConsumption, maxTanks < attacker.tank!, odds2, maxSoldiers, maxTanks, true, attMap >= 3).setRequirePrompt(odds2[0] > 0.8));
                         }
                     }
                 }
             }
         }
     }
-    if (attMap >= 4 && attacker.aircraft! >= 3) { // air
+    if (attacker.aircraft! >= 3) { // air
         const perAircraft = attackConsumption({ aircraft: 1 });
         const maxAircraft = Math.min(attacker.aircraft!, attacksForConsumption(perAircraft, resources));
         const aircraftConsumption = attackConsumption({ aircraft: maxAircraft });
         if (maxAircraft > 0) {
             const odds = getOddsArr(maxAircraft, defender.aircraft!);
-            if (odds[0] != 1) {
-                validAttacks.push(new Airstrike(aircraftConsumption, maxAircraft < attacker.aircraft!, odds, maxAircraft, AirstrikeTarget.TARGET_AIRCRAFT));
+            {
+                validAttacks.push(new Airstrike(aircraftConsumption, maxAircraft < attacker.aircraft!, odds, maxAircraft, AirstrikeTarget.TARGET_AIRCRAFT, attMap >= 4).setRequirePrompt(odds[0] == 1));
             }
         }
     }
-    if (attMap >= 4) { // ship
+    if (attacker.ship! > 0) { // ship
         const perShip = attackConsumption({ ship: 1 });
         const maxShips = Math.min(attacker.ship!, attacksForConsumption(perShip, resources));
         const shipConsumption = attackConsumption({ ship: maxShips });
         if (maxShips > 0) {
             const odds = getOddsArr(maxShips, defender.ship!);
-            if (odds[0] != 1) {
-                validAttacks.push(new NavalAttack(shipConsumption, maxShips < attacker.ship!, odds, maxShips));
+            {
+                validAttacks.push(new NavalAttack(shipConsumption, maxShips < attacker.ship!, odds, maxShips, attMap >= 4).setRequirePrompt(odds[0] > 0.8));
             }
         }
     }
@@ -210,14 +210,29 @@ export class AttackInfo {
     odds: number[];
     requirePrompt: boolean;
     mapCost: number;
+    hasMap: boolean;
+    disabled: boolean;
 
-    constructor(endpoint: string, consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], map: number) {
+    constructor(endpoint: string, consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], map: number, hasMap: boolean) {
         this.endpoint = endpoint;
         this.consumption = consumption;
         this.low_rss = low_rss;
         this.odds = odds;
         this.requirePrompt = odds[3] <= 0.01;
         this.mapCost = map;
+        this.hasMap = hasMap;
+        this.disabled = false;
+    }
+
+
+    setDisabled(b: boolean) {
+        this.disabled = b;
+        return this;
+    }
+
+    setRequirePrompt(b: boolean) {
+        this.requirePrompt = b;
+        return this;
     }
 
     toString(): string {
@@ -230,7 +245,7 @@ export class AttackInfo {
     }
 
     postData(): { [key: string]: string } {
-        const baseProperties = new AttackInfo('', {}, false, [], 0);
+        const baseProperties = new AttackInfo('', {}, false, [], 0, false);
         const extendedProperties: { [key: string]: any } = {};
 
         for (const key in this) {
@@ -255,8 +270,8 @@ export class GroundAttack extends AttackInfo {
     attTanks: number;
     soldiersUseMunitions: boolean;
 
-    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attSoldiers: number, attTanks: number, soldiersUseMunitions: boolean) {
-        super('groundbattle', consumption, low_rss, odds, 3);
+    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attSoldiers: number, attTanks: number, soldiersUseMunitions: boolean, hasMap: boolean) {
+        super('groundbattle', consumption, low_rss, odds, 3, hasMap);
         this.attSoldiers = attSoldiers;
         this.attTanks = attTanks;
         this.soldiersUseMunitions = soldiersUseMunitions;
@@ -305,8 +320,8 @@ export class Airstrike extends AttackInfo {
     attAircraft: number;
     type: AirstrikeTarget;
 
-    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attAircraft: number, type: AirstrikeTarget) {
-        super('airstrike', consumption, low_rss, odds, 4);
+    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attAircraft: number, type: AirstrikeTarget, hasMap: boolean) {
+        super('airstrike', consumption, low_rss, odds, 4, hasMap);
         this.attAircraft = attAircraft;
         this.type = type;
     }
@@ -323,8 +338,8 @@ export class Airstrike extends AttackInfo {
 export class NavalAttack extends AttackInfo {
     attShips: number;
 
-    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attShips: number) {
-        super('navalbattle', consumption, low_rss, odds, 4);
+    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attShips: number, hasMap: boolean) {
+        super('navalbattle', consumption, low_rss, odds, 4, hasMap);
         this.attShips = attShips;
     }
 
