@@ -483,7 +483,7 @@ function addAutoAttack(cards: CardInfo[], attacks: [CardInfo, AttackInfo[]][] ) 
     let first: [CardInfo, AttackInfo] | null = null;
     for (let [card, attackList] of attacks) {
         for (const attack of attackList) {
-            if (attack.requirePrompt) continue;
+            if (attack.requirePrompt || attack.disabled || !attack.hasMap) continue;
             const maxVal = Math.max(...attack.odds);
             if (maxVal === attack.odds[3]) {
                 first = [card, attack];
