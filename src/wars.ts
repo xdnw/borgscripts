@@ -585,13 +585,13 @@ function declareBulk() {
             alert('Please enter some URLs.');
             return false;
         }
-        const urlPattern = new RegExp(window.location.origin + "/nation/war/declare/id=[0-9]+");
+        const urlPattern = new RegExp(window.location.origin + "[^=]+id=[0-9]+");
         const isValid = urls.split('\n').every(url => urlPattern.test(url.trim()));
         if (isValid) {
             return true;
         } else {
             alert('Invalid URL(s) entered. Please provide valid urls in the form:\n' +
-                window.location.origin + '/nation/war/declare/id=123456');
+                window.location.origin + '/nation/id=123456');
             return false;
         }
     }
