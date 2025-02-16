@@ -200,6 +200,12 @@ export function getValidAttacks(card: CardInfo): AttackInfo[] {
             }
         }
     }
+    if (attacker.missile! > 0 && attacker.map >= 8) {
+        validAttacks.push(new MissileAttack(true));
+    }
+    if (attacker.nuke! > 0 && attacker.map >= 12) {
+        validAttacks.push(new NukeAttack(true));
+    }
     return validAttacks;
 }
 
@@ -262,6 +268,36 @@ export class AttackInfo {
         }
 
         return extendedProperties;
+    }
+}
+
+export class MissileAttack extends AttackInfo {
+    improvementCategory: number;
+    cityId: number;
+
+    constructor(hasMap: boolean) {
+        super('missile', {}, false, [0, 1, 0, 0], 4, hasMap);
+        this.improvementCategory = 2;
+        this.cityId = 0;
+        this.requirePrompt = true;
+    }
+
+    toString(): string {
+        return "Launch Missile";
+    }
+}
+
+export class NukeAttack extends AttackInfo {
+    cityId: number;
+
+    constructor(hasMap: boolean) {
+        super('nuke', {}, false, [0, 1, 0, 0], 4, hasMap);
+        this.cityId = 0;
+        this.requirePrompt = true;
+    }
+
+    toString(): string {
+        return "Launch Nuke";
     }
 }
 

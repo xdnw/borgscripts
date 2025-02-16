@@ -12,8 +12,8 @@ import {
     getValidAttacks, getWarUrl,
     GroundAttack,
     groundStrength,
-    MilitaryUnits,
-    NavalAttack,
+    MilitaryUnits, MissileAttack,
+    NavalAttack, NukeAttack,
     Status, UNIT_PURCHASES, UnitPurchaseFormInfo
 } from "./pw-util";
 import {
@@ -668,8 +668,8 @@ function createAttackButton(cards: CardInfo[], attack: AttackInfo, card: CardInf
         btn.onclick = () => {
             if (attack.requirePrompt) {
                 const successStr = attack.odds
-                    .filter(odd => odd > 0)
-                    .map((odd, index) => `${oddsLabels[index]}: ${(odd * 100).toFixed(0)}%`)
+                    .map((odd, index) => odd <= 0 ? undefined : `${oddsLabels[index]}: ${(odd * 100).toFixed(0)}%`)
+                    .filter(str => str !== undefined)
                     .join(', ');
                 const userConfirmed = confirm("Are you sure you want to perform this attack?\n" +
                     attack.toString() + "\n" +
@@ -700,7 +700,18 @@ function executeAttack(cards: CardInfo[], attack: AttackInfo, element: HTMLButto
         const url = window.location.origin + "/nation/war/" + attack.endpoint + "/war=" + card.id;
         const doc = await get(url);
         const token = (doc.querySelector('[name=token]') as HTMLInputElement).value;
+
         const data = attack.postData();
+        if (attack instanceof MissileAttack || attack instanceof NukeAttack) {
+            const cityId = (doc.querySelector('[name=cityId]') as HTMLInputElement).value;
+            const cityOptions = Array.from(doc.querySelectorAll('select[name=cityId] option'));
+            const highestInfraOption = cityOptions.reduce((max, option) => {
+                const infra = parseFloat(option.getAttribute('data-infra')!);
+                return infra > max.infra ? { value: (option as HTMLOptionElement).value, infra: infra } : max;
+            }, { value: '', infra: 0 });
+            data['cityId'] = highestInfraOption.value;
+        }
+
         data['token'] = token;
         data['attack'] = '';
         const urlData = new URLSearchParams(Object.entries(data));
