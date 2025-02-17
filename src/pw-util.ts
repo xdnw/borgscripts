@@ -276,7 +276,7 @@ export class MissileAttack extends AttackInfo {
     cityId: number;
 
     constructor(hasMap: boolean) {
-        super('missile', {}, false, [0, 1, 0, 0], 4, hasMap);
+        super('missile', {}, false, [0, 1, 0, 0], 8, hasMap);
         this.improvementCategory = 2;
         this.cityId = 0;
         this.requirePrompt = true;
@@ -291,7 +291,7 @@ export class NukeAttack extends AttackInfo {
     cityId: number;
 
     constructor(hasMap: boolean) {
-        super('nuke', {}, false, [0, 1, 0, 0], 4, hasMap);
+        super('nuke', {}, false, [0, 1, 0, 0], 12, hasMap);
         this.cityId = 0;
         this.requirePrompt = true;
     }

@@ -37,7 +37,7 @@ module.exports = {
             headers: {
                 name: 'Declare War',
                 namespace: 'http://tampermonkey.net/',
-                version: '0.15',
+                version: '0.16',
                 description: 'War type in URL, default war type button, captcha autofill, captcha solver, auto declare war, war declare auto redirect',
                 author: 'Borg',
                 match: [
