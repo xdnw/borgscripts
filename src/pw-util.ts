@@ -79,6 +79,41 @@ export function parseResourceHtml(elem: Element): { [key in Resources]?: number 
     return resourceMap;
 }
 
+export function parseCostHtml(elem: Element): { [key in Resources]?: number } {
+    const costMap: { [key in Resources]?: number } = {};
+    // find each resource icon + tooltip
+    const costItems = elem.querySelectorAll('span.pw-tooltip');
+    costItems.forEach(span => {
+        // resource name is inside the tooltip-content div
+        const tooltipContent = span.querySelector('.pw-tooltip-content');
+        const resourceName = tooltipContent?.textContent?.trim().toLowerCase();
+        // the numeric cost lives in the text node right after the span
+        let valueText = '';
+        const parent = span.parentElement;
+        if (parent) {
+            const nodes = Array.from(parent.childNodes);
+            const idx = nodes.indexOf(span);
+            if (idx >= 0) {
+                for (let i = idx + 1; i < nodes.length; i++) {
+                    const txt = nodes[i].textContent?.trim();
+                    if (txt) { valueText = txt; break; }
+                }
+            }
+        }
+        const amount = valueText
+            ? parseFloat(valueText.replace(/,/g, ''))
+            : 0;
+        // map string to enum
+        const resourceEnum = resourceName
+            ? parseResource(resourceName)
+            : undefined;
+        if (resourceEnum) {
+            costMap[resourceEnum] = amount;
+        }
+    });
+    return costMap;
+}
+
 export function getResources(): { [key in Resources]?: number } {
     const infoBar = document.querySelector('.informationbar');
     if (!infoBar) {
@@ -196,7 +231,13 @@ export function getValidAttacks(card: CardInfo): AttackInfo[] {
         if (maxShips > 0) {
             const odds = getOddsArr(maxShips, defender.ship!);
             {
-                validAttacks.push(new NavalAttack(shipConsumption, maxShips < attacker.ship!, odds, maxShips, attMap >= 4).setRequirePrompt(odds[0] > 0.8));
+                const lowRss = maxShips < attacker.ship!;
+                const hasMap = attMap >= 4;
+                const reqPrompt = odds[0] > 0.8;
+                validAttacks.push(new NavalAttack(shipConsumption, lowRss, odds, maxShips, NavalTarget.TARGET_SHIPS, hasMap).setRequirePrompt(reqPrompt));
+                validAttacks.push(new NavalAttack(shipConsumption, lowRss, odds, maxShips, NavalTarget.TARGET_AIR, hasMap).setRequirePrompt(reqPrompt));
+                validAttacks.push(new NavalAttack(shipConsumption, lowRss, odds, maxShips, NavalTarget.TARGET_GROUND, hasMap).setRequirePrompt(reqPrompt));
+                validAttacks.push(new NavalAttack(shipConsumption, lowRss, odds, maxShips, NavalTarget.TARGET_INFRASTRUCTURE, hasMap).setRequirePrompt(reqPrompt));
             }
         }
     }
@@ -371,16 +412,25 @@ export class Airstrike extends AttackInfo {
     }
 }
 
+export enum NavalTarget {
+    TARGET_INFRASTRUCTURE = "navalInfra",
+    TARGET_SHIPS = "navalShips",
+    TARGET_GROUND = "navalGround",
+    TARGET_AIR = "navalAir"
+}
+
 export class NavalAttack extends AttackInfo {
     attShips: number;
+    type: NavalTarget;
 
-    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attShips: number, hasMap: boolean) {
+    constructor(consumption: { [key in Resources]?: number }, low_rss: boolean, odds: number[], attShips: number, type: NavalTarget, hasMap: boolean) {
         super('navalbattle', consumption, low_rss, odds, 4, hasMap);
         this.attShips = attShips;
+        this.type = type;
     }
 
     toString(): string {
-        return `Naval`;
+        return this.type;
     }
 }
 
@@ -419,22 +469,7 @@ export function attackConsumption(units: MilitaryUnits): { [key in Resources]?: 
     return consumption;
 }
 
-export type UnitPurchaseFormInfo = {
-    url: string,
-    id: string,
-    name: string,
-    isProjectile?: boolean,
-}
-
-export const UNIT_PURCHASES = {
-    Soldiers: { url: "/nation/military/soldiers/", id: "soldiers", name: "soldiers" } as UnitPurchaseFormInfo,
-    Tanks: { url: "/nation/military/tanks/", id: "tanks", name: "tanks" } as UnitPurchaseFormInfo,
-    Aircraft: { url: "/nation/military/aircraft/", id: "aircraft", name: "aircraft" } as UnitPurchaseFormInfo,
-    Ships: { url: "/nation/military/navy/", id: "ships", name: "ships" } as UnitPurchaseFormInfo,
-    Spies: { url: "/nation/military/spies/", id: "aircraftinput", name: "spies" } as UnitPurchaseFormInfo,
-    Missiles: { url: "/nation/military/missiles/", id: "aircraftinput", name: "missile_purchase_input_amount", isProjectile: true } as UnitPurchaseFormInfo,
-    Nukes: { url: "/nation/military/nukes/", id: "aircraftinput", name: "ships", isProjectile: true } as UnitPurchaseFormInfo,
-};
+export const UNIT_NAMES: string[] = ["Soldiers", "Tanks", "Aircraft", "Ships", "Missiles", "Nukes", "Spies"];
 
 export interface BattleDetails {
     success: number;

@@ -14,7 +14,9 @@ import {
     groundStrength,
     MilitaryUnits, MissileAttack,
     NavalAttack, NukeAttack,
-    Status, UNIT_PURCHASES, UnitPurchaseFormInfo
+    parseCostHtml,
+    parseResourceHtml,
+    Status, UNIT_NAMES
 } from "./pw-util";
 import {
     addCheckboxWithGMVariable,
@@ -301,12 +303,21 @@ function setCard(card: CardInfo, attack: AttackInfo | undefined, details: Battle
 function updateUnits(unitParentDiv: HTMLElement, side: boolean, info: CardSide) {
     const unitDiv = unitParentDiv.children[side ? 1 : 0];
     const unitIcons = unitDiv.querySelectorAll('.pw-tooltip');
-    updateUnit(unitIcons[0], 'soldiers', info.soldier!);
-    updateUnit(unitIcons[1], 'aircraft', info.aircraft!);
-    updateUnit(unitIcons[2], 'missiles', info.missile!);
-    updateUnit(unitIcons[3], 'tanks', info.tank!);
-    updateUnit(unitIcons[4], 'ships', info.ship!);
-    updateUnit(unitIcons[5], 'nukes', info.nuke!);
+    if (side) {
+        updateUnit(unitIcons[3], 'soldiers', info.soldier!);
+        updateUnit(unitIcons[4], 'aircraft', info.aircraft!);
+        updateUnit(unitIcons[5], 'missiles', info.missile!);
+        updateUnit(unitIcons[0], 'tanks', info.tank!);
+        updateUnit(unitIcons[1], 'ships', info.ship!);
+        updateUnit(unitIcons[2], 'nukes', info.nuke!);
+    } else {
+        updateUnit(unitIcons[0], 'soldiers', info.soldier!);
+        updateUnit(unitIcons[1], 'aircraft', info.aircraft!);
+        updateUnit(unitIcons[2], 'missiles', info.missile!);
+        updateUnit(unitIcons[3], 'tanks', info.tank!);
+        updateUnit(unitIcons[4], 'ships', info.ship!);
+        updateUnit(unitIcons[5], 'nukes', info.nuke!);
+    }
 }
 
 function updateUnit(unitDiv: Element, unit: string, value: number) {
@@ -777,6 +788,7 @@ function addRebuyButtons(cards: CardInfo[]) {
         addCheckboxWithGMVariable('rebuy_ship', 'ships', (checked) => {}, (checked) => {}, rebuyDiv, false);
 
         rebuyButton = document.createElement('button');
+        rebuyButton.id = 'rebuy-button';
         rebuyButton.textContent = 'Rebuy';
         rebuyButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
         rebuyDiv.appendChild(rebuyButton);
@@ -785,6 +797,7 @@ function addRebuyButtons(cards: CardInfo[]) {
 
         // Add sell non soldier
         sellButton = document.createElement('button');
+        sellButton.id = 'sell-button';
         sellButton.textContent = 'Sell All Non-Soldiers';
         sellButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
         rebuyDiv.appendChild(sellButton);
@@ -804,6 +817,7 @@ function addRebuyButtons(cards: CardInfo[]) {
 
         rebuyDiv.appendChild(VR());
         fetchProjectsButton = document.createElement('button');
+        fetchProjectsButton.id = 'projects-button';
         fetchProjectsButton.textContent = 'Fetch ID/VDS';
         fetchProjectsButton.classList.add(`bg-blue-600`, `hover:bg-blue-700`, `active:bg-blue-800`, 'rounded', 'px-2', 'text-white', 'strong');
         rebuyDiv.appendChild(fetchProjectsButton);
@@ -818,14 +832,14 @@ function addRebuyButtons(cards: CardInfo[]) {
         ];
         const self = cards.length > 0 ? cards[0].self : undefined;
         handleButtonClick(rebuyButton, () =>
-            rebuy(states, self, true), f => handleRebuyResponse(f, cards));
+            fetchAndRebuy(states, true), f => handleRebuyResponse(f, cards));
     });
 
     sellButton.addEventListener('click', () => {
         if (confirm("Are you sure you want to sell all non-soldier units?")) {
             const self = cards.length > 0 ? cards[0].self : undefined;
             handleButtonClick(sellButton, () =>
-                rebuy([false, true, true, true], self, false), f => handleRebuyResponse(f, cards));
+                fetchAndRebuy([false, true, true, true], false), f => handleRebuyResponse(f, cards));
         }
     });
 
@@ -834,8 +848,9 @@ function addRebuyButtons(cards: CardInfo[]) {
     });
 }
 
-function handleRebuyResponse(response: [number, number, number, number, string], cards: CardInfo[]) {
-    const [soldier, tank, aircraft, ship, message] = response;
+function handleRebuyResponse(response: [number[], string], cards: CardInfo[]) {
+    const [soldier, tank, aircraft, ship] = response[0];
+    const message = response[1];
     const isSuccess = soldier + tank + aircraft + ship > 0;
     if (message) setAlert(message, isSuccess);
     if (isSuccess) updateCardsForRebuy([soldier, tank, aircraft, ship], cards);
@@ -855,71 +870,190 @@ function updateCardsForRebuy(units: number[], cards: CardInfo[]) {
     return true;
 }
 
-async function rebuy(units: boolean[], self: CardSide | undefined, buyOrsell: boolean): Promise<[number, number, number, number, string]> {
-    const unitInfo: [UnitPurchaseFormInfo, number, number][] = [];
-    if (units[0]) unitInfo.push([UNIT_PURCHASES.Soldiers, self ? self.soldier! : -1, 0]);
-    if (units[1]) unitInfo.push([UNIT_PURCHASES.Tanks, self ? self.tank! : -1, 1]);
-    if (units[2]) unitInfo.push([UNIT_PURCHASES.Aircraft, self ? self.aircraft! : -1, 2]);
-    if (units[3]) unitInfo.push([UNIT_PURCHASES.Ships, self ? self.ship! : -1, 3]);
-    if (unitInfo.length === 0) {
-        return [0, 0, 0, 0, 'No units selected'];
-    }
-    let message = '';
-    let result = [0, 0, 0, 0];
-    for (let i = 0; i < unitInfo.length; i++) {
-        const [amt, msg] = await buyUnit(unitInfo[i][0], buyOrsell, unitInfo[i][1]);
-        result[unitInfo[i][2]] = amt;
-        message += msg + '\n';
-        await delay(10);
-    }
-    return [result[0], result[1], result[2], result[3], message.trim()];
+export interface UnitPurchaseStats {
+  cost: number;
+  daily: number;
+  dailyMax: number;
+  owned: number;
+  ownedMax: number;
 }
 
-function buyUnit(unitInfo: UnitPurchaseFormInfo, buyOrSell: boolean, currentAmount: number): Promise<[number, string]> {
-    const url = window.location.origin + unitInfo.url;
-    if (!buyOrSell && currentAmount === 0) {
-        return Promise.resolve([0, `No ${unitInfo.name} to sell`]);
+export type RebuyPotentialResult = Record<string, UnitPurchaseStats>;
+
+function maxAffordable(
+  cost: Record<string, number>,
+  resources: Record<string, number>
+): number {
+  return Object.entries(cost)
+    .map(([res, amt]) => {
+      if (amt <= 0) return Infinity;
+      const have = resources[res] ?? 0;
+      return Math.floor(have / amt);
+    })
+    .reduce((m, v) => Math.min(m, v), Infinity);
+}
+
+// helper: subtract cost × qty from your resources
+function deductResources(
+  resources: Record<string, number>,
+  cost: Record<string, number>,
+  qty: number
+): void {
+  Object.entries(cost).forEach(([res, amt]) => {
+    resources[res] = (resources[res] ?? 0) - amt * qty;
+  });
+}
+
+async function fetchAndRebuy(rebuy: boolean[], buyOrsell: boolean): Promise<[number[], string]> {
+    const url = window.location.origin + '/nation/military/';
+    // 1) get potential
+    const stats = await fetchRebuyPotential(rebuy);
+        const budget = { ...getResources() };
+    const messages: string[] = [];
+    const formData = new URLSearchParams();
+    let didAnything = false;
+    let amounts = [0, 0, 0, 0, 0, 0];
+
+    for (let i = 0; i < rebuy.length; i++) {
+        if (!rebuy[i]) continue;
+        const name = UNIT_NAMES[i];
+        const data = stats[name];
+        if (!data) continue;
+
+        let qty = 0;
+        if (!buyOrsell) {
+            // selling
+            if (data.daily > 0) {
+                messages.push(`Cannot sell ${name}; bought today`);
+                continue;
+            }
+            if (data.owned <= 0) {
+                messages.push(`No ${name} to sell`);
+                continue;
+            }
+            qty = -data.owned;
+            messages.push(`Selling ${data.owned} ${name}`);
+            amounts[i] = -data.owned;
+        } else {
+            const remain = data.dailyMax - data.daily;
+            if (remain <= 0) {
+                messages.push(`Daily limit reached for ${name}`);
+                continue;
+            }
+            // compute how many you can afford across all resources
+            const affordable = maxAffordable(data.cost as any, budget);
+            const buyQty = Math.min(remain, affordable);
+            if (buyQty <= 0) {
+                messages.push(`Not enough resources to buy ${name}`);
+                continue;
+            }
+            qty = buyQty;
+            // subtract from every resource in your budget
+            deductResources(budget, data.cost as any, buyQty);
+            messages.push(`Buying ${buyQty} ${name}`);
+            amounts[i] = buyQty;
+        }
+
+        // queue in form
+        formData.set(`${name.toLowerCase()}_purchase`, qty.toString());
+        didAnything = true;
     }
-    const result: Promise<[number, string]> = get(url).then(doc => {
-        const form = doc.querySelector('form');
-        if (!form) {
-            return Promise.reject<[number, string]>([0, 'Form not found']);
-        }
-        const postData: { [key: string]: string } = {};
-        const token = (doc.querySelector('[name=token]') as HTMLInputElement).value;
-        postData['token'] = token;
 
-        const submit = form.querySelector('input[type=submit]') as HTMLInputElement;
-        postData[submit.name] = submit.value;
+    // 4) if nothing to do, just report
+    if (!didAnything) {
+        return [amounts, messages.length
+            ? messages.join('\n')
+            : 'No units to buy or sell'];
+    }
 
-        const amountInput = form.querySelector('input[type=text]') as HTMLInputElement;
-        let amt = buyOrSell ? parseInt(amountInput.value ?? '0') : parseInt(amountInput.getAttribute('minimum') ?? '0');
-        if (amt === 0 && unitInfo.isProjectile && buyOrSell) {
-            amt = 1;
-        }
-        if (currentAmount != -1 && !buyOrSell) {
-            amt = -currentAmount;
-        }
-        postData[amountInput.name] = amt.toString();
-        if (amt === 0) {
-            return Promise.resolve<[number, string]>([0, `No ${unitInfo.name} to ${buyOrSell ? 'buy' : 'sell'}`]);
-        }
-        return post(url, new URLSearchParams(Object.entries(postData))).then(doc => {
-            let alert = doc.querySelector('.alert.alert-success');
-            if (alert) {
-                return [amt, alert.textContent!.trim()];
-            }
-            alert = doc.querySelector('.alert.alert-danger');
-            if (alert) {
-                return [0, alert.textContent!.trim()];
-            }
-            return [0, `Attempted to purchase ${amt} ${unitInfo.name} but no response was found`];
+    // 5) fill defaults
+    ['soldiers','tanks','aircraft','ships','missiles','nukes','spies','barracks','factories','hangars','drydocks']
+        .forEach(key => {
+            const field = `${key}_purchase`;
+            if (!formData.has(field)) formData.set(field, '0');
         });
-    }).catch(error => {
-        console.error("Request failed:", error);
-        return [0, 'Request failed'];
-    }) as Promise<[number, string]>;
-    return result;
+    formData.set('submit_modal_purchase','');
+    // grab token from page
+    const tokenEl = document.querySelector<HTMLFormElement>('[name=token]');
+    if (tokenEl) formData.set('token', tokenEl.value);
+
+    // 6) submit & append server response
+    const respDoc = await post(url, formData);
+    const alertEl = respDoc.querySelector('.pw-alert.pw-alert-green, .pw-alert.pw-alert-red');
+    const serverMsg = alertEl?.textContent?.trim() ?? 'No server response';
+    messages.push(serverMsg);
+    return [amounts, messages.join('\n')];
+}
+
+async function fetchRebuyPotential(rebuy: boolean[]): Promise<RebuyPotentialResult> {
+    const url = window.location.origin + '/nation/military/';
+    return get(url).then(doc => {
+        const result: RebuyPotentialResult = {};
+
+        for (let i = 0; i < rebuy.length; i++) {
+            if (rebuy[i]) {
+                const unitName = UNIT_NAMES[i];
+                const header = Array.from(doc.querySelectorAll('h2')).find(h2 => {
+                    return h2.textContent?.trim() === unitName
+                });
+                if (header) {
+                    // --- new parsing code start ---
+                    // find the container for this unit
+                    const container = header.closest('div.flex-col');
+                    if (!container) {
+                        console.warn(`Container for ${unitName} not found`);
+                        continue;
+                    }
+
+                    const unitSection = header.closest('div.flex.flex-col');
+                    if (!unitSection) {
+                        console.warn(`Unit section for ${unitName} not found`);
+                        continue;
+                    }
+
+                    // COST per unit: first <table> under that section
+                    const costCell = unitSection.querySelector('table tbody tr td:nth-child(2)');
+                    const costText = costCell?.textContent?.trim().split(/\s+/)[0] ?? '0';
+                    console.log("COST ", costCell, parseCostHtml(costCell!));
+                    const cost = parseFloat(costText.replace(/,/g, ''));
+
+                    // STATS block: the div that has class "w-11/12 flex-grow"
+                    const statsSection = unitSection.querySelector('div.w-11\\/12.flex-grow') as HTMLElement;
+                    if (!statsSection) {
+                        console.warn(`Stats section for ${unitName} not found`);
+                        continue;
+                    }
+
+                    // helper to pull “X/Y” from the bar under a pw-title-xs
+                    function parseFraction(title: string): [number,number] {
+                        const titleEl = Array.from(statsSection.querySelectorAll('div.pw-title-xs'))
+                            .find(el => el.textContent?.trim() === title);
+                        if (!titleEl) return [0, 0];
+                        // the bar text is inside the next sibling’s .absolute.text-xs
+                        const fracEl = titleEl.nextElementSibling
+                                    ?.querySelector('div.absolute.text-xs') as HTMLElement;
+                        const [cur, max] = (fracEl.textContent ?? '0/0')
+                                        .trim().split('/').map(n => parseInt(n, 10));
+                        return [cur, max];
+                    }
+
+                    const [dailyCur, dailyMax] = parseFraction('Daily Purchase');
+                    const [ownedCur, ownedMax] = parseFraction(`Owned ${unitName}`);
+                    result[unitName] = {
+                        cost: cost,
+                        daily: dailyCur,
+                        dailyMax: dailyMax,
+                        owned: ownedCur,
+                        ownedMax: ownedMax
+                    };
+                } else {
+                    console.warn(`Header for ${unitName} not found`);
+                }
+            }
+
+        }
+        return result;
+    });
 }
 
 function fetchProjects(btn: HTMLButtonElement, cards: CardInfo[]) {
