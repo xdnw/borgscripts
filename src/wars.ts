@@ -714,13 +714,10 @@ function executeAttack(cards: CardInfo[], attack: AttackInfo, element: HTMLButto
 
         const data = attack.postData();
         if (attack instanceof MissileAttack || attack instanceof NukeAttack) {
-            const cityId = (doc.querySelector('[name=cityId]') as HTMLInputElement).value;
-            const cityOptions = Array.from(doc.querySelectorAll('select[name=cityId] option'));
-            const highestInfraOption = cityOptions.reduce((max, option) => {
-                const infra = parseFloat(option.getAttribute('data-infra')!);
-                return infra > max.infra ? { value: (option as HTMLOptionElement).value, infra: infra } : max;
-            }, { value: '', infra: 0 });
-            data['cityId'] = highestInfraOption.value;
+            const citySelect = doc.querySelector('select[name=cityId]') as HTMLSelectElement | null;
+            if (citySelect) {
+                data['cityId'] = getHighestInfraCityId(citySelect);
+            }
         }
 
         data['token'] = token;
@@ -746,6 +743,66 @@ function executeAttack(cards: CardInfo[], attack: AttackInfo, element: HTMLButto
         }
         updateResources(doc);
     });
+}
+
+function getHighestInfraCityId(citySelect: HTMLSelectElement): string {
+    const cityOptions = Array.from(citySelect.options).filter(option => option.value);
+    if (cityOptions.length === 0) {
+        return citySelect.value;
+    }
+
+    const selectedOption = cityOptions.find(option => option.selected)
+        ?? cityOptions.find(option => option.value === citySelect.value)
+        ?? cityOptions[0];
+
+    const highestInfraOption = cityOptions.reduce((bestOption, option) => {
+        const optionInfra = parseCityInfra(option);
+        const bestOptionInfra = parseCityInfra(bestOption);
+
+        if (optionInfra === undefined) {
+            return bestOption;
+        }
+
+        if (bestOptionInfra === undefined || optionInfra > bestOptionInfra) {
+            return option;
+        }
+
+        return bestOption;
+    }, selectedOption);
+
+    return highestInfraOption.value;
+}
+
+function parseCityInfra(option: HTMLOptionElement | undefined): number | undefined {
+    if (!option) {
+        return undefined;
+    }
+
+    for (const attribute of Array.from(option.attributes)) {
+        if (!/infra/i.test(attribute.name)) {
+            continue;
+        }
+
+        const parsedInfra = parseNumericValue(attribute.value);
+        if (parsedInfra !== undefined) {
+            return parsedInfra;
+        }
+    }
+
+    const optionText = option.textContent?.trim() ?? '';
+    const textInfraMatch = optionText.match(/(?:infra|infrastructure)\D*(\d[\d,]*(?:\.\d+)?)/i)
+        ?? optionText.match(/(\d[\d,]*(?:\.\d+)?)\s*(?:infra|infrastructure)\b/i);
+
+    if (!textInfraMatch) {
+        return undefined;
+    }
+
+    return parseNumericValue(textInfraMatch[1]);
+}
+
+function parseNumericValue(value: string): number | undefined {
+    const parsedValue = parseFloat(value.replace(/,/g, ''));
+    return isNaN(parsedValue) ? undefined : parsedValue;
 }
 
 function setAlert(message: string, isSuccess: boolean) {
